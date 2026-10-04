@@ -1,12 +1,20 @@
 from langchain_core.tools import tool
 
+from app.common.constants import HOSPITAL_FIELDS
 from app.services.cost_report_service import (
     get_financial_data_by_hospital,
 )
 from app.tools.financial_tools import (
     calculate_financial_indicators,
 )
-
+from app.services.cms_service import (
+    search_hospitals_by_name,
+    get_hospital_by_id,
+)
+from app.services.access_service import (
+    get_other_hospitals_in_county,
+)
+from app.services.access_service import compare_hospitals_in_area
 
 @tool
 def analyze_hospital_financials(facility_id: str) -> dict:
@@ -28,7 +36,7 @@ def analyze_hospital_financials(facility_id: str) -> dict:
     if financial_record is None:
         return {
             "error": "Financial data not found",
-            "facility_id": facility_id,
+            HOSPITAL_FIELDS.FACILITY_ID_FIELD: facility_id,
         }
 
     indicators = calculate_financial_indicators(
@@ -42,4 +50,146 @@ def analyze_hospital_financials(facility_id: str) -> dict:
         "fiscal_year_end":
             financial_record.fiscal_year_end,
         "indicators": indicators.model_dump(),
+    }
+
+@tool
+def search_hospital(name: str) -> dict:
+    """
+    Search CMS hospital data by hospital name.
+
+    Use this tool when the user provides a hospital name
+    but does not provide a CMS Certification Number (CCN).
+
+    Returns matching hospitals with their facility IDs,
+    names, city, state, ZIP code, and hospital type.
+    """
+
+    hospitals = search_hospitals_by_name(name)
+
+    if not hospitals:
+        return {
+            "query": name,
+            "count": 0,
+            "hospitals": [],
+        }
+
+    return {
+        "query": name,
+        "count": len(hospitals),
+        "hospitals": [
+            hospital.model_dump()
+            for hospital in hospitals[:5]
+        ],
+    }
+
+@tool
+def get_hospital_by_ccn(facility_id: str) -> dict:
+    """
+    Find a hospital using its CMS Certification Number (CCN).
+
+    Use this tool when the user provides a CCN and wants
+    to know which hospital it belongs to or wants basic
+    hospital information.
+    """
+
+    hospital = get_hospital_by_id(facility_id)
+
+    if hospital is None:
+        return {
+            "error": "Hospital not found",
+            HOSPITAL_FIELDS.FACILITY_ID_FIELD: facility_id,
+        }
+
+    return hospital.model_dump()
+
+@tool
+def analyze_healthcare_access(facility_id: str) -> dict:
+    """
+    Analyze basic healthcare access for a hospital.
+
+    Use this tool when the user asks about healthcare access,
+    alternative hospitals, or the potential access impact
+    if a hospital closes.
+
+    This initial version uses other CMS-listed hospitals
+    in the same county as a county-level access proxy.
+    """
+
+    result = get_other_hospitals_in_county(facility_id)
+
+    if result is None:
+        return {
+            "error": "Hospital not found",
+            HOSPITAL_FIELDS.FACILITY_ID_FIELD: facility_id,
+        }
+
+    return {
+        "source": "CMS Hospital General Information",
+        "method": "Same-county alternative hospital proxy",
+        **result,
+    }
+
+@tool
+def compare_hospitals_by_area(
+    facility_id: str,
+    scope: str,
+) -> dict:
+    """
+    Compare a hospital with other CMS-listed hospitals
+    in the same county, ZIP code, or state.
+
+    Parameters:
+    - facility_id: CMS Certification Number (CCN)
+    - scope: "county", "zip", or "state". See ../common/constants.py for valid values.
+
+    This is an administrative-area comparison.
+    It does not calculate physical distance.
+    """
+
+    try:
+        result = compare_hospitals_in_area(
+            facility_id=facility_id,
+            scope=scope,
+        )
+
+    except ValueError as error:
+        return {
+            "error": str(error),
+            HOSPITAL_FIELDS.FACILITY_ID_FIELD: facility_id,
+            "scope": scope,
+        }
+
+    if result is None:
+        return {
+            "error": "Hospital not found",
+            HOSPITAL_FIELDS.FACILITY_ID_FIELD: facility_id,
+        }
+
+    compact_hospitals = [
+        {
+            HOSPITAL_FIELDS.FACILITY_ID_FIELD: hospital[HOSPITAL_FIELDS.FACILITY_ID_FIELD],
+            HOSPITAL_FIELDS.FACILITY_NAME_FIELD: hospital[HOSPITAL_FIELDS.FACILITY_NAME_FIELD],
+            HOSPITAL_FIELDS.CITYTOWN_FIELD: hospital[HOSPITAL_FIELDS.CITYTOWN_FIELD],
+            HOSPITAL_FIELDS.COUNTY_FIELD: hospital[HOSPITAL_FIELDS.COUNTY_FIELD],
+        }
+        for hospital in result["comparison_hospitals"]
+    ]
+
+    return {
+        "source": "CMS Hospital General Information",
+
+        "target_hospital":
+            result["target_hospital"],
+
+        "scope":
+            result["scope"],
+
+        "area":
+            result["area"],
+
+        "comparison_count":
+            result["comparison_count"],
+
+        "comparison_hospitals":
+            compact_hospitals,
     }

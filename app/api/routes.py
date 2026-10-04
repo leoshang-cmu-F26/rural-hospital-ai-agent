@@ -1,3 +1,4 @@
+from app.common.constants import HOSPITAL_FIELDS
 from app.utils.state_utils import normalize_state
 from fastapi import APIRouter, HTTPException
 from app.models.hospital import Hospital
@@ -41,7 +42,7 @@ def get_hospitals(state: str):
         hospitals = get_hospitals_by_state(state_code)
 
         return {
-            "state": state_code,
+            HOSPITAL_FIELDS.STATE_FIELD: state_code,
             "count": len(hospitals),
             "hospitals": hospitals,
         }

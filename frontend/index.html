@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Rural Hospital AI Agent</title>
+
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+<body>
+
+<div class="app-container">
+
+    <header>
+        <h1>Rural Hospital AI Agent</h1>
+        <p>
+            Investigate rural hospital financial conditions
+            using public CMS data.
+        </p>
+    </header>
+
+    <main>
+
+        <div id="chat-box" class="chat-box">
+
+            <div class="message agent-message">
+                <div class="message-label">
+                    AI Agent
+                </div>
+
+                <div class="message-content">
+                    Ask me about a hospital's financial condition.
+                    You can use either a hospital name or a CMS CCN.
+                </div>
+            </div>
+
+        </div>
+
+
+        <div class="examples">
+
+            <button class="example-button"
+                    onclick="useExample(
+                    'Analyze the financial condition of Greenbrier Valley Medical Center.'
+                    )">
+                Analyze Greenbrier Valley Medical Center
+            </button>
+
+            <button class="example-button"
+                    onclick="useExample(
+                    'Find the hospital whose CCN is 510002.'
+                    )">
+                Find hospital by CCN
+            </button>
+
+            <button class="example-button"
+                    onclick="useExample(
+                    'Find the CCN of Greenbrier Valley Medical Center.'
+                    )">
+                Find CCN by hospital name
+            </button>
+
+        </div>
+
+
+        <div class="input-area">
+
+            <textarea
+                id="message-input"
+                placeholder="Ask about a rural hospital..."
+                rows="2"
+            ></textarea>
+
+            <button
+                id="send-button"
+                onclick="sendMessage()"
+            >
+                Send
+            </button>
+
+        </div>
+
+    </main>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
