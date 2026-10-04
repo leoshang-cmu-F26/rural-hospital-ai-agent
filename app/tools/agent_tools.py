@@ -16,6 +16,8 @@ from app.services.access_service import (
 )
 from app.services.access_service import compare_hospitals_in_area
 
+MAX_HOSPITALS_FOR_AGENT = 10
+
 @tool
 def analyze_hospital_financials(facility_id: str) -> dict:
     """
@@ -133,6 +135,7 @@ def analyze_healthcare_access(facility_id: str) -> dict:
 def compare_hospitals_by_area(
     facility_id: str,
     scope: str,
+    limit: int | None = None,
 ) -> dict:
     """
     Compare a hospital with other CMS-listed hospitals
@@ -140,7 +143,15 @@ def compare_hospitals_by_area(
 
     Parameters:
     - facility_id: CMS Certification Number (CCN)
-    - scope: "county", "zip", or "state". See ../common/constants.py for valid values.
+    - scope: "county", "zip", or "state".
+      See ../common/constants.py for valid values.
+    - limit: optional maximum number of hospitals returned
+      for state-level comparisons.
+
+    County and ZIP comparisons return all matching hospitals.
+
+    State comparisons return a limited number of hospitals
+    by default to reduce the amount of data sent to the LLM.
 
     This is an administrative-area comparison.
     It does not calculate physical distance.
@@ -165,18 +176,56 @@ def compare_hospitals_by_area(
             HOSPITAL_FIELDS.FACILITY_ID_FIELD: facility_id,
         }
 
+    # All hospitals returned by the service.
+    comparison_hospitals = result["comparison_hospitals"]
+
+    # County and ZIP comparisons are usually small,
+    # so return all matching hospitals.
+    if result["scope"] in {"county", "zip"}:
+        selected_hospitals = comparison_hospitals
+
+    # State comparisons may contain many hospitals.
+    # Limit the records sent to the LLM to reduce token usage.
+    else:
+        effective_limit = (
+            limit
+            if limit is not None
+            else MAX_HOSPITALS_FOR_AGENT
+        )
+
+        selected_hospitals = comparison_hospitals[
+            :effective_limit
+        ]
+
+    # Only send fields that are useful to the LLM.
     compact_hospitals = [
         {
-            HOSPITAL_FIELDS.FACILITY_ID_FIELD: hospital[HOSPITAL_FIELDS.FACILITY_ID_FIELD],
-            HOSPITAL_FIELDS.FACILITY_NAME_FIELD: hospital[HOSPITAL_FIELDS.FACILITY_NAME_FIELD],
-            HOSPITAL_FIELDS.CITYTOWN_FIELD: hospital[HOSPITAL_FIELDS.CITYTOWN_FIELD],
-            HOSPITAL_FIELDS.COUNTY_FIELD: hospital[HOSPITAL_FIELDS.COUNTY_FIELD],
+            HOSPITAL_FIELDS.FACILITY_ID_FIELD:
+                hospital[
+                    HOSPITAL_FIELDS.FACILITY_ID_FIELD
+                ],
+
+            HOSPITAL_FIELDS.FACILITY_NAME_FIELD:
+                hospital[
+                    HOSPITAL_FIELDS.FACILITY_NAME_FIELD
+                ],
+
+            HOSPITAL_FIELDS.CITYTOWN_FIELD:
+                hospital[
+                    HOSPITAL_FIELDS.CITYTOWN_FIELD
+                ],
+
+            HOSPITAL_FIELDS.COUNTY_FIELD:
+                hospital[
+                    HOSPITAL_FIELDS.COUNTY_FIELD
+                ],
         }
-        for hospital in result["comparison_hospitals"]
+        for hospital in selected_hospitals
     ]
 
     return {
-        "source": "CMS Hospital General Information",
+        "source":
+            "CMS Hospital General Information",
 
         "target_hospital":
             result["target_hospital"],
@@ -187,8 +236,19 @@ def compare_hospitals_by_area(
         "area":
             result["area"],
 
+        # Total number of matching hospitals,
+        # even if only part of them is returned.
         "comparison_count":
             result["comparison_count"],
+
+        # Number actually included in the ToolMessage.
+        "returned_count":
+            len(compact_hospitals),
+
+        # True when some matching hospitals were omitted.
+        "truncated":
+            result["comparison_count"]
+            > len(compact_hospitals),
 
         "comparison_hospitals":
             compact_hospitals,
