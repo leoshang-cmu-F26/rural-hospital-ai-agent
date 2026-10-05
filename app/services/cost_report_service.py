@@ -1,9 +1,15 @@
 import requests
 from app.models.financial import HospitalFinancialRecord
 
+# CMS republished every Hospital Provider Cost Report dataset on
+# 2026-09-30 with new UUIDs. Current IDs are listed in the CMS
+# catalog (https://data.cms.gov/data.json) under the title
+# "Hospital Provider Cost Report : <year>".
+# 2023: 3250ccb2-4ad3-415c-9d29-56527b004d59
+# 2024: 44060663-47d8-4ced-a115-b53b4c270acb
 CMS_COST_REPORT_2023_URL = (
     "https://data.cms.gov/data-api/v1/dataset/"
-    "cb8d0018-1bbe-4559-91bf-9429ac344b48/data"
+    "3250ccb2-4ad3-415c-9d29-56527b004d59/data"
 )
 
 
