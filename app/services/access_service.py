@@ -3,101 +3,9 @@ from app.services.cms_service import (
     get_hospital_by_id,
     get_hospitals_by_state,
 )
-
-def get_other_hospitals_in_county(
-    facility_id: str,
-) -> dict | None:
-    """
-    Find other hospitals located in the same county
-    as the target hospital.
-
-    This is an initial proxy for healthcare access.
-    It does not yet calculate actual travel distance.
-    """
-
-    # 1. Find the target hospital
-    target_hospital = get_hospital_by_id(facility_id)
-
-    if target_hospital is None:
-        return None
-
-
-    # 2. Make sure county information exists
-    if not target_hospital.countyparish:
-        return {
-            HOSPITAL_FIELDS.FACILITY_ID_FIELD: target_hospital.facility_id,
-            HOSPITAL_FIELDS.FACILITY_NAME_FIELD: target_hospital.facility_name,
-            HOSPITAL_FIELDS.STATE_FIELD: target_hospital.state,
-            HOSPITAL_FIELDS.COUNTY: None,
-            "alternative_hospital_count": 0,
-            "alternative_hospitals": [],
-            "error": "County information is unavailable.",
-        }
-
-
-    # 3. Get all hospitals in the same state
-    hospitals_in_state = get_hospitals_by_state(
-        target_hospital.state
-    )
-
-
-    target_county = target_hospital.countyparish.strip().upper()
-
-    # 4. Filter hospitals in the same county
-    alternative_hospitals = []
-    for hospital in hospitals_in_state:
-
-        if hospital[HOSPITAL_FIELDS.FACILITY_ID_FIELD] == facility_id:
-            continue
-
-        county = hospital.get(HOSPITAL_FIELDS.COUNTY_PARISH_FIELD)
-
-        if not county:
-            continue
-
-        hospital_county = (
-            county
-            .strip()
-            .upper()
-        )
-
-        if hospital_county == target_county:
-            alternative_hospitals.append(
-                {
-                    HOSPITAL_FIELDS.FACILITY_ID_FIELD: hospital.get(
-                        HOSPITAL_FIELDS.FACILITY_ID_FIELD
-                    ),
-                    HOSPITAL_FIELDS.FACILITY_NAME_FIELD: hospital.get(
-                        HOSPITAL_FIELDS.FACILITY_NAME_FIELD
-                    ),
-                    HOSPITAL_FIELDS.ADDRESS_FIELD: hospital.get(
-                        HOSPITAL_FIELDS.ADDRESS_FIELD
-                    ),
-                    HOSPITAL_FIELDS.CITYTOWN_FIELD: hospital.get(
-                        HOSPITAL_FIELDS.CITYTOWN_FIELD
-                    ),
-                    HOSPITAL_FIELDS.STATE_FIELD: hospital.get(
-                        HOSPITAL_FIELDS.STATE_FIELD
-                    ),
-                    HOSPITAL_FIELDS.ZIP_CODE_FIELD: hospital.get(
-                        HOSPITAL_FIELDS.ZIP_CODE_FIELD
-                    ),
-                    HOSPITAL_FIELDS.HOSPITAL_TYPE_FIELD: hospital.get(
-                        HOSPITAL_FIELDS.HOSPITAL_TYPE_FIELD
-                    ),
-                }
-            )
-
-
-    # 5. Return structured result
-    return {
-        HOSPITAL_FIELDS.FACILITY_ID_FIELD: target_hospital.facility_id,
-        HOSPITAL_FIELDS.FACILITY_NAME_FIELD: target_hospital.facility_name,
-        "county": target_hospital.countyparish,
-        HOSPITAL_FIELDS.STATE_FIELD: target_hospital.state,
-        "alternative_hospital_count": len(alternative_hospitals),
-        "alternative_hospitals": alternative_hospitals,
-    }
+from app.services.census_service import (
+    get_hospital_demographics,
+)
 
 def compare_hospitals_in_area(
     facility_id: str,
@@ -245,4 +153,107 @@ def compare_hospitals_in_area(
 
         "comparison_hospitals":
             comparison_hospitals,
+    }
+
+def get_healthcare_access_analysis(
+    facility_id: str,
+) -> dict | None:
+    """
+    Build a basic county-level healthcare access analysis
+    for a hospital using CMS hospital data and Census
+    demographics.
+    """
+
+    # 1. Get other hospitals in the same county
+    comparison = compare_hospitals_in_area(
+        facility_id=facility_id,
+        scope=SCOPE_FIELDS.COUNTY,
+    )
+
+    if comparison is None:
+        return None
+
+    # 2. Get county demographics
+    demographics = get_hospital_demographics(
+        facility_id
+    )
+
+    # 3. Handle Census failure independently
+    if (
+        demographics is None
+        or "error" in demographics
+    ):
+        demographic_result = {
+            "available": False,
+            "error": (
+                demographics.get("error")
+                if isinstance(demographics, dict)
+                else "Demographic data unavailable."
+            ),
+        }
+
+    else:
+        demographic_result = {
+            "available": True,
+
+            "total_population":
+                demographics["total_population"],
+
+            "population_65_plus":
+                demographics["population_65_plus"],
+
+            "population_65_plus_percent":
+                demographics[
+                    "population_65_plus_percent"
+                ],
+
+            "source":
+                demographics["source"],
+        }
+
+    target_hospital = comparison[
+        "target_hospital"
+    ]
+
+    # 4. Combine the evidence
+    return {
+        "facility_id":
+            target_hospital["facility_id"],
+
+        "facility_name":
+            target_hospital["facility_name"],
+
+        "state":
+            target_hospital["state"],
+
+        "county":
+            target_hospital["county"],
+
+        "alternative_hospital_count":
+            comparison["comparison_count"],
+
+        "alternative_hospitals":
+            comparison["comparison_hospitals"],
+
+        "county_demographics":
+            demographic_result,
+
+        "limitations": [
+            (
+                "Same-county hospital count is an "
+                "administrative-area proxy."
+            ),
+            (
+                "County population is not the hospital's "
+                "exact patient service area."
+            ),
+            (
+                "Physical distance and travel time are "
+                "not yet included."
+            ),
+            (
+                "HRSA shortage-area information is "
+                "not yet included."
+            ),
+        ],
     }

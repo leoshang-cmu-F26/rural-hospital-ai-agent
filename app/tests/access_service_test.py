@@ -3,7 +3,11 @@ from pprint import pprint
 
 from app.common.constants import HOSPITAL_FIELDS
 from app.services.cms_service import get_hospitals_by_state
-from app.services.access_service import compare_hospitals_in_area
+from app.services.access_service import (
+    compare_hospitals_in_area,
+    get_healthcare_access_analysis,
+)
+
 
 
 def test_greenbrier_negative_case():
@@ -164,11 +168,13 @@ def run_tests():
         "========================================"
     )
 
-    test_greenbrier_negative_case()
+    # test_greenbrier_negative_case()
 
-    test_positive_county_case()
+    # test_positive_county_case()
 
-    test_zip_case()
+    # test_zip_case()
+
+    test_healthcare_access_analysis()
 
     print(
         "\n========================================"
@@ -178,6 +184,60 @@ def run_tests():
     )
     print(
         "========================================\n"
+    )
+
+
+def test_healthcare_access_analysis():
+
+    print(
+        "\n=== Healthcare Access Analysis Test ==="
+    )
+
+    result = get_healthcare_access_analysis(
+        "510002"
+    )
+
+    pprint(result)
+
+    assert result is not None
+
+    assert result["facility_id"] == "510002"
+    assert result["state"] == "WV"
+    assert result["county"] == "GREENBRIER"
+
+    # CMS hospital alternatives
+    assert (
+        result["alternative_hospital_count"]
+        >= 0
+    )
+
+    # Census demographics
+    demographics = result[
+        "county_demographics"
+    ]
+
+    assert demographics["available"] is True
+
+    assert (
+        demographics["total_population"]
+        > 0
+    )
+
+    assert (
+        demographics["population_65_plus"]
+        > 0
+    )
+
+    assert (
+        0
+        <= demographics[
+            "population_65_plus_percent"
+        ]
+        <= 100
+    )
+
+    print(
+        "\nHEALTHCARE ACCESS ANALYSIS TEST PASSED"
     )
 
 

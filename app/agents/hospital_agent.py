@@ -3,15 +3,7 @@ import os
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
-
-from app.tools.agent_tools import (
-    search_hospital,
-    get_hospital_by_ccn,
-    analyze_hospital_financials,
-    analyze_healthcare_access,
-    compare_hospitals_by_area,
-    analyze_financial_trend,
-)
+from app.tools.agent_tools import HOSPITAL_AGENT_TOOLS
 
 
 load_dotenv()
@@ -233,6 +225,31 @@ SYSTEM_PROMPT = """
     Never interpret zero same-county hospitals as meaning that no
     nearby hospitals exist.
 
+    6. get_hospital_demographics
+
+    Use this tool when the user asks about population or age
+    demographics around a hospital.
+
+    The current demographic analysis is county-level.
+
+    It provides:
+    - total county population,
+    - population age 65 and older,
+    - percentage of residents age 65 and older.
+
+    If the user provides a hospital name:
+    1. use search_hospital to obtain the CCN,
+    2. then use get_hospital_demographics.
+
+    If the user already provides a CCN:
+    call get_hospital_demographics directly.
+
+    The demographic source is the U.S. Census Bureau ACS
+    2024 5-Year estimates.
+
+    Do not describe county population as the exact number of
+    people served by the hospital. It represents the population
+    of the hospital's county, not its actual patient catchment area.
 
     --------------------------------------------------
 
@@ -507,14 +524,7 @@ SYSTEM_PROMPT = """
 
 hospital_agent = create_agent(
     model=model,
-    tools=[ 
-        search_hospital,
-        get_hospital_by_ccn,
-        analyze_hospital_financials,
-        analyze_healthcare_access,
-        compare_hospitals_by_area,
-        analyze_financial_trend,
-    ],
+    tools=HOSPITAL_AGENT_TOOLS,
     system_prompt=SYSTEM_PROMPT,
 )
 

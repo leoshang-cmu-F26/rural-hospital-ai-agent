@@ -19,6 +19,14 @@ class _ScopeFields:
     ZIP: str = "zip"
     STATE: str = "state"
 
+# See https://api.census.gov/data/2024/acs/acs5/profile/variables.html,
+@dataclass(frozen=True)
+class _CensusFields:
+    TOTAL_POPULATION_FIELD: str = "DP05_0001E"
+    AGE_65_PLUS_FIELD: str = "DP05_0024E"
+    AGE_65_PLUS_PERCENT_FIELD: str = "DP05_0024PE"
+
 
 HOSPITAL_FIELDS = _HospitalFields()
 SCOPE_FIELDS = _ScopeFields()
+CENSUS_FIELDS = _CensusFields()

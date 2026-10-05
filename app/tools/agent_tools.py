@@ -1,10 +1,5 @@
 from langchain_core.tools import tool
-
 from app.common.constants import HOSPITAL_FIELDS
-from app.services.access_service import (
-    compare_hospitals_in_area,
-    get_other_hospitals_in_county,
-)
 from app.services.cms_service import (
     get_hospital_by_id,
     search_hospitals_by_name,
@@ -18,6 +13,13 @@ from app.tools.financial_tools import (
 )
 from app.tools.trend_tools import (
     analyze_financial_trend_for_hospital,
+)
+from app.services.access_service import (
+    get_healthcare_access_analysis,
+    compare_hospitals_in_area
+)
+from app.services.census_service import (
+    get_hospital_demographics as get_hospital_demographics_service,
 )
 
 MAX_HOSPITALS_FOR_AGENT = 10
@@ -260,31 +262,38 @@ def get_hospital_by_ccn(facility_id: str) -> dict:
 
 
 @tool
-def analyze_healthcare_access(facility_id: str) -> dict:
+def analyze_healthcare_access(
+    facility_id: str,
+) -> dict:
     """
-    Analyze basic healthcare access for a hospital.
+    Analyze basic healthcare-access conditions around a hospital.
 
-    Use this tool when the user asks about healthcare access,
-    alternative hospitals, or the potential access impact
-    if a hospital closes.
+    Use this tool for broader healthcare-access questions,
+    including questions about the possible access impact of
+    hospital closure or service reduction.
 
-    This initial version uses other CMS-listed hospitals
-    in the same county as a county-level access proxy.
+    The current analysis combines:
+    - other CMS-listed hospitals in the same county
+    - county population
+    - population age 65 and older
+    - percentage of county residents age 65 and older
+
+    This analysis does not yet include physical distance,
+    travel time, HRSA shortage designations, hospital capacity,
+    or service-line availability.
     """
 
-    result = get_other_hospitals_in_county(facility_id)
+    result = get_healthcare_access_analysis(
+        facility_id
+    )
 
     if result is None:
         return {
             "error": "Hospital not found",
-            HOSPITAL_FIELDS.FACILITY_ID_FIELD: facility_id,
+            "facility_id": facility_id,
         }
 
-    return {
-        "source": "CMS Hospital General Information",
-        "method": "Same-county alternative hospital proxy",
-        **result,
-    }
+    return result
 
 
 @tool
@@ -409,3 +418,47 @@ def compare_hospitals_by_area(
         "comparison_hospitals":
             compact_hospitals,
     }
+
+
+@tool
+def get_hospital_demographics(
+    facility_id: str,
+) -> dict:
+    """
+    Retrieve county-level Census demographics for a hospital.
+
+    Use this tool when the user asks about the population or
+    age demographics of the county containing a hospital.
+
+    The facility_id must be a CMS Certification Number (CCN).
+
+    Currently provides:
+    - total county population
+    - population age 65 and older
+    - percentage of population age 65 and older
+
+    Demographic data comes from the U.S. Census Bureau
+    ACS 2024 5-Year estimates.
+    """
+
+    result = get_hospital_demographics_service(
+        facility_id
+    )
+
+    if result is None:
+        return {
+            "error": "Hospital not found",
+            "facility_id": facility_id,
+        }
+
+    return result
+
+HOSPITAL_AGENT_TOOLS = [
+    search_hospital,  # Find CMS hospitals by name.
+    get_hospital_by_ccn,  # Retrieve hospital details by CCN.
+    analyze_hospital_financials,  # Calculate financial indicators from CMS reports.
+    analyze_healthcare_access,  # Find same-county alternative hospitals.
+    compare_hospitals_by_area,  # Compare hospitals in the same county, ZIP, or state.
+    get_hospital_demographics,  # Retrieve Census demographics for the hospital's county.
+]
+
