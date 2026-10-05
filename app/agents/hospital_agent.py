@@ -180,6 +180,12 @@ SYSTEM_PROMPT = """
     - service similarity,
     - or the ability of another hospital to absorb displaced patients.
 
+    County and ZIP comparisons return all matching hospitals.
+    State-level comparisons may return only a subset to keep the
+    tool response compact. Check comparison_count, returned_count,
+    and truncated before describing how many hospital records are
+    shown; do not present a truncated list as the complete list.
+
     If no hospitals are found in the same county or ZIP code, do NOT
     say that there are no nearby hospitals.
 
@@ -200,9 +206,14 @@ SYSTEM_PROMPT = """
     - "Does this hospital appear important for local healthcare access?"
     - "Analyze healthcare access around hospital 510002."
 
-    The current healthcare-access analysis is a preliminary
-    county-level proxy based on other CMS-listed hospitals in the
-    same county.
+    The current healthcare-access analysis combines:
+    - a same-county count of other CMS-listed hospitals, and
+    - county-level Census population and age estimates.
+
+    Census demographics may be unavailable even when the CMS
+    hospital comparison succeeds. If the result marks demographics
+    unavailable, report that limitation and still explain the
+    available hospital-comparison data.
 
     Do NOT use this tool when the user explicitly asks only for:
     - hospitals in the same county,
@@ -217,8 +228,10 @@ SYSTEM_PROMPT = """
     - driving time,
     - service-line availability,
     - hospital capacity,
-    - Census demographic vulnerability,
     - or HRSA shortage-area information.
+
+    County-level population and age estimates are included when
+    Census data is available, but they are not a vulnerability index.
 
     Clearly explain these limitations when relevant.
 
@@ -251,9 +264,12 @@ SYSTEM_PROMPT = """
     people served by the hospital. It represents the population
     of the hospital's county, not its actual patient catchment area.
 
+    Census data may be unavailable. Report an error or unavailable
+    result as such; do not invent or estimate demographic values.
+
     --------------------------------------------------
 
-    6. analyze_financial_trend
+    7. analyze_financial_trend
 
     Use this tool when the user asks how a hospital's financial or
     operational condition has changed over time, for example:

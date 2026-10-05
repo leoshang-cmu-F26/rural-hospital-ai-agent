@@ -457,6 +457,7 @@ HOSPITAL_AGENT_TOOLS = [
     search_hospital,  # Find CMS hospitals by name.
     get_hospital_by_ccn,  # Retrieve hospital details by CCN.
     analyze_hospital_financials,  # Calculate financial indicators from CMS reports.
+    analyze_financial_trend,  # Analyze financial trends over multiple years.
     analyze_healthcare_access,  # Find same-county alternative hospitals.
     compare_hospitals_by_area,  # Compare hospitals in the same county, ZIP, or state.
     get_hospital_demographics,  # Retrieve Census demographics for the hospital's county.
