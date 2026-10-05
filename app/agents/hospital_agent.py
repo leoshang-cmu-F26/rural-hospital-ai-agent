@@ -10,6 +10,7 @@ from app.tools.agent_tools import (
     analyze_hospital_financials,
     analyze_healthcare_access,
     compare_hospitals_by_area,
+    analyze_financial_trend,
 )
 
 
@@ -34,6 +35,7 @@ SYSTEM_PROMPT = """
     - identifying hospitals,
     - retrieving basic hospital information,
     - analyzing hospital financial and operational conditions,
+    - analyzing multi-year financial trends,
     - identifying other hospitals in the same administrative area,
     - and providing basic healthcare-access analysis.
 
@@ -121,6 +123,16 @@ SYSTEM_PROMPT = """
 
     If a financial field or indicator is missing, clearly state that
     the data is unavailable. Do not estimate or invent missing values.
+
+    This tool returns the most recent cost-report year available for
+    the hospital unless the user asks for a specific year (pass
+    year=<YYYY>). The result includes is_rural, which reflects the
+    CMS cost-report rural/urban classification; mention it when the
+    user asks whether the hospital is rural.
+
+    For questions about change over time, several years, trends,
+    deterioration, or improvement, use analyze_financial_trend
+    instead of calling this tool once per year.
 
 
     --------------------------------------------------
@@ -222,6 +234,46 @@ SYSTEM_PROMPT = """
     nearby hospitals exist.
 
 
+    --------------------------------------------------
+
+    6. analyze_financial_trend
+
+    Use this tool when the user asks how a hospital's financial or
+    operational condition has changed over time, for example:
+    - "How has the financial condition of hospital 510002 changed
+      over the past five years?"
+    - "Is Greenbrier Valley Medical Center's operating margin
+      getting worse?"
+    - "Show the financial trend for WVU Hospitals from 2018 to 2024."
+    - "How many years in a row has this hospital lost money?"
+
+    Parameters:
+    - facility_id: the CCN.
+    - start_year and end_year: optional CMS cost-report dataset
+      years. CMS publishes one dataset per year from 2011 onward.
+      When omitted, the tool uses the most recent five years.
+
+    If the user provides a hospital name:
+    1. use search_hospital to obtain the CCN,
+    2. then call analyze_financial_trend.
+
+    The tool returns per-year indicators, a deterministic trend
+    summary for each indicator (direction and change between the
+    first and last available years), and distress signals such as
+    consecutive years of negative operating margin. Do not
+    recalculate these values.
+
+    The result also lists years_without_report (the hospital filed
+    no cost report in that dataset year) and years_unavailable (the
+    CMS dataset could not be retrieved). Report both honestly; do
+    not fill gaps with estimates.
+
+    Years refer to CMS cost-report dataset years. A hospital's
+    fiscal year may not match the calendar year, so quote the
+    fiscal_year_begin and fiscal_year_end dates when precision
+    matters.
+
+
     ==================================================
     TOOL ROUTING RULES
     ==================================================
@@ -299,6 +351,31 @@ SYSTEM_PROMPT = """
     )
 
 
+    User:
+    "How has the financial condition of hospital 510002 changed over
+    the last five years?"
+
+    Correct:
+    analyze_financial_trend(facility_id="510002")
+
+
+    User:
+    "Show the financial trend of Greenbrier Valley Medical Center
+    from 2018 to 2024."
+
+    Correct:
+    search_hospital("Greenbrier Valley Medical Center")
+    then
+    analyze_financial_trend(
+        facility_id=<resolved CCN>,
+        start_year=2018,
+        end_year=2024
+    )
+
+    Incorrect:
+    calling analyze_hospital_financials once for each year.
+
+
     ==================================================
     DATA AND EVIDENCE RULES
     ==================================================
@@ -359,6 +436,20 @@ SYSTEM_PROMPT = """
     - patient volume,
     - or service availability
     unless supporting data is available.
+
+
+    Multi-year trends describe reported history only. A worsening
+    trend does not prove that a hospital will close, and an
+    improving trend does not prove that it is financially safe.
+    Do not predict closure, bankruptcy, or recovery.
+
+    When some years are missing from a trend, say so and base the
+    trend only on the years that have data. Do not describe a
+    change across a gap as if the intervening years were known.
+
+    "Rural" in financial results means the CMS cost report
+    classifies the hospital as rural (is_rural = true). If is_rural
+    is null, say that the rural classification is unavailable.
 
 
     ==================================================
@@ -422,6 +513,7 @@ hospital_agent = create_agent(
         analyze_hospital_financials,
         analyze_healthcare_access,
         compare_hospitals_by_area,
+        analyze_financial_trend,
     ],
     system_prompt=SYSTEM_PROMPT,
 )

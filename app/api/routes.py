@@ -1,23 +1,46 @@
+from fastapi import APIRouter, HTTPException, Query
+
+from app.agents.agent import AgentRequest, AgentResponse
+from app.agents.hospital_agent import ask_hospital_agent
 from app.common.constants import HOSPITAL_FIELDS
-from app.utils.state_utils import normalize_state
-from fastapi import APIRouter, HTTPException
+from app.models.financial import (
+    FinancialHistory,
+    FinancialIndicators,
+    FinancialTrend,
+    HospitalFinancialRecord,
+)
 from app.models.hospital import Hospital
 from app.services.cms_service import (
-    get_hospitals_by_state,
     get_hospital_by_id,
+    get_hospitals_by_state,
     search_hospitals_by_name,
 )
-from app.models.financial import HospitalFinancialRecord
 from app.services.cost_report_service import (
+    CostReportUnavailableError,
+    get_cost_report_datasets,
     get_financial_data_by_hospital,
+    get_financial_history_by_hospital,
     get_raw_financial_data_by_hospital,
 )
-from app.models.financial import FinancialIndicators
 from app.tools.financial_tools import calculate_financial_indicators
-from app.agents.hospital_agent import ask_hospital_agent
-from app.agents.agent import AgentRequest, AgentResponse
+from app.tools.trend_tools import build_financial_trend
+from app.utils.state_utils import normalize_state
 
 router = APIRouter()
+
+def year_query(
+    description: str = "CMS cost-report dataset year",
+):
+    # A fresh Query() per parameter. FastAPI binds a FieldInfo to the
+    # first parameter name it sees, so sharing one instance would make
+    # start_year / end_year silently read the "year" query parameter.
+    return Query(
+        default=None,
+        ge=1990,
+        le=2100,
+        description=description,
+    )
+
 
 # region Hospital API
 
@@ -53,12 +76,14 @@ def get_hospitals(state: str):
             detail=str(error),
         )
 
+
 @router.get(
     "/hospitals/search",
     response_model=list[Hospital]
 )
 def search_hospitals(name: str):
     return search_hospitals_by_name(name)
+
 
 @router.get(
     "/hospitals/{facility_id}",
@@ -75,14 +100,26 @@ def get_hospital(facility_id: str):
 
     return hospital
 
-@router.get(
-    "/hospitals/{facility_id}/financials",
-    response_model=HospitalFinancialRecord,
-)
-def get_hospital_financials(facility_id: str):
-    financial_data = get_financial_data_by_hospital(
-        facility_id
-    )
+# endregion
+
+
+# region Financial API
+
+def _load_financial_record(
+    facility_id: str,
+    year: int | None,
+) -> HospitalFinancialRecord:
+    try:
+        financial_data = get_financial_data_by_hospital(
+            facility_id,
+            year=year,
+        )
+
+    except CostReportUnavailableError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        )
 
     if financial_data is None:
         raise HTTPException(
@@ -92,30 +129,165 @@ def get_hospital_financials(facility_id: str):
 
     return financial_data
 
+
+def _load_financial_history(
+    facility_id: str,
+    start_year: int | None,
+    end_year: int | None,
+):
+    try:
+        return get_financial_history_by_hospital(
+            facility_id,
+            start_year=start_year,
+            end_year=end_year,
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    except CostReportUnavailableError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        )
+
+
+@router.get("/datasets/cost-reports")
+def list_cost_report_datasets():
+    """
+    CMS cost-report dataset IDs currently known to the service,
+    one per report year. Useful for checking that discovery from
+    the CMS catalog is working.
+    """
+    datasets = get_cost_report_datasets()
+
+    return {
+        "years": sorted(datasets),
+        "datasets": {
+            str(year): dataset_id
+            for year, dataset_id in sorted(datasets.items())
+        },
+    }
+
+
+@router.get(
+    "/hospitals/{facility_id}/financials",
+    response_model=HospitalFinancialRecord,
+)
+def get_hospital_financials(
+    facility_id: str,
+    year: int | None = year_query(),
+):
+    return _load_financial_record(facility_id, year)
+
+
 @router.get("/hospitals/{facility_id}/financials/raw")
-def get_raw_hospital_financials(facility_id: str):
-    return get_raw_financial_data_by_hospital(facility_id)
+def get_raw_hospital_financials(
+    facility_id: str,
+    year: int | None = year_query(),
+):
+    try:
+        return get_raw_financial_data_by_hospital(
+            facility_id,
+            year=year,
+        )
+
+    except CostReportUnavailableError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        )
+
+
+@router.get(
+    "/hospitals/{facility_id}/financials/history",
+    response_model=FinancialHistory,
+)
+def get_hospital_financial_history(
+    facility_id: str,
+    start_year: int | None = year_query("First dataset year"),
+    end_year: int | None = year_query("Last dataset year"),
+):
+    history = _load_financial_history(
+        facility_id,
+        start_year,
+        end_year,
+    )
+
+    return FinancialHistory(
+        facility_id=history.facility_id,
+        years_requested=history.years_requested,
+        years_with_data=history.years_with_data,
+        years_without_report=history.years_without_report,
+        years_unavailable=history.years_unavailable,
+        records=history.records,
+    )
+
 
 @router.get(
     "/hospitals/{facility_id}/indicators",
     response_model=FinancialIndicators,
 )
-def get_hospital_indicators(facility_id: str):
-    financial_data = get_financial_data_by_hospital(
-        facility_id
+def get_hospital_indicators(
+    facility_id: str,
+    year: int | None = year_query(),
+):
+    return calculate_financial_indicators(
+        _load_financial_record(facility_id, year)
     )
 
-    if financial_data is None:
+
+@router.get(
+    "/hospitals/{facility_id}/trend",
+    response_model=FinancialTrend,
+)
+def get_hospital_financial_trend(
+    facility_id: str,
+    start_year: int | None = year_query("First dataset year"),
+    end_year: int | None = year_query("Last dataset year"),
+):
+    history = _load_financial_history(
+        facility_id,
+        start_year,
+        end_year,
+    )
+
+    if not history.records:
         raise HTTPException(
             status_code=404,
-            detail="Financial data not found",
+            detail={
+                "message": (
+                    "No cost report data found for this hospital "
+                    "in the requested years"
+                ),
+                "years_requested": history.years_requested,
+                "years_without_report": history.years_without_report,
+                "years_unavailable": {
+                    str(year): reason
+                    for year, reason
+                    in history.years_unavailable.items()
+                },
+            },
         )
 
-    return calculate_financial_indicators(
-        financial_data
+    yearly_indicators = [
+        calculate_financial_indicators(record)
+        for record in history.records
+    ]
+
+    return build_financial_trend(
+        facility_id=history.facility_id,
+        yearly_indicators=yearly_indicators,
+        years_requested=history.years_requested,
+        years_without_report=history.years_without_report,
+        years_unavailable=history.years_unavailable,
     )
 
 # endregion
+
 
 # region Agent API
 
