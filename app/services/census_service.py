@@ -171,17 +171,37 @@ def get_hospital_demographics(
         }
 
 
-    # 3. Convert hospital state to Census state FIPS
-    state_fips = get_state_fips(
-        hospital.state
-    )
+    # 3. Convert hospital state to Census state FIPS and retrieve
+    #    county demographics.
+    #
+    #    Any failure here (CENSUS_API_KEY not configured, a territory
+    #    without a FIPS mapping, a Census outage or a non-JSON reply)
+    #    is returned as an error dict instead of raised, so the
+    #    healthcare-access analysis and the agent tools can degrade
+    #    gracefully rather than turning the whole request into a 500.
+    try:
+        state_fips = get_state_fips(
+            hospital.state
+        )
 
+        demographics = get_county_demographics(
+            state_fips=state_fips,
+            county_name=hospital.countyparish,
+        )
 
-    # 4. Retrieve county demographics
-    demographics = get_county_demographics(
-        state_fips=state_fips,
-        county_name=hospital.countyparish,
-    )
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        requests.RequestException,
+    ) as error:
+        return {
+            "facility_id": facility_id,
+            "error": (
+                "Census demographics are unavailable: "
+                f"{error}"
+            ),
+        }
 
     if demographics is None:
         return {
