@@ -51,6 +51,9 @@ STATE_NAME_TO_CODE = {
     "west virginia": "WV",
     "wisconsin": "WI",
     "wyoming": "WY",
+    # Also present in CMS Hospital General Information.
+    "district of columbia": "DC",
+    "puerto rico": "PR",
 }
 
 STATE_CODES = set(STATE_NAME_TO_CODE.values())
@@ -126,6 +129,7 @@ STATE_FIPS = {
     "WV": "54",
     "WI": "55",
     "WY": "56",
+    "PR": "72",
 }
 
 def get_state_fips(state: str) -> str:
