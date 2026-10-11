@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, HTTPException, Query
 
 from app.agents.agent import AgentRequest, AgentResponse
@@ -26,6 +27,7 @@ from app.tools.financial_tools import calculate_financial_indicators
 from app.tools.trend_tools import build_financial_trend
 from app.utils.state_utils import normalize_state
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 def year_query(
@@ -296,7 +298,30 @@ def get_hospital_financial_trend(
     response_model=AgentResponse,
 )
 def chat_with_agent(request: AgentRequest):
-    response = ask_hospital_agent(request.message)
+    message = request.message.strip()
+
+    if not message:
+        raise HTTPException(
+            status_code=400,
+            detail="message must not be blank",
+        )
+
+    try:
+        response = ask_hospital_agent(message)
+
+    # The agent run spans OpenAI, LangGraph and every tool; any
+    # uncaught exception there would otherwise surface as a bare
+    # 500 and the chat UI would only show "Agent request failed."
+    except Exception as error:  # noqa: BLE001
+        logger.exception("Agent request failed")
+
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "The AI agent could not complete the request: "
+                f"{type(error).__name__}: {error}"
+            ),
+        )
 
     return AgentResponse(
         response=response

@@ -267,7 +267,6 @@ def analyze_healthcare_access(
 ) -> dict:
     """
     Analyze basic healthcare-access conditions around a hospital.
-
     The current analysis combines:
     - other CMS-listed hospitals in the same county
     - county population

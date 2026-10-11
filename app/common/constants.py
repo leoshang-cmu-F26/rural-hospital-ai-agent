@@ -26,6 +26,7 @@ class _CensusFields:
     AGE_65_PLUS_FIELD: str = "DP05_0024E"
     AGE_65_PLUS_PERCENT_FIELD: str = "DP05_0024PE"
 
+
 # See https://gisportal.hrsa.gov/server/rest/services/udsmapper/HPSA/MapServer/0
 @dataclass(frozen=True)
 class _HRSAFields:
@@ -43,3 +44,4 @@ HOSPITAL_FIELDS = _HospitalFields()
 SCOPE_FIELDS = _ScopeFields()
 CENSUS_FIELDS = _CensusFields()
 HRSA_FIELDS = _HRSAFields()
+

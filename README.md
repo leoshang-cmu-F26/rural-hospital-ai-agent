@@ -45,7 +45,7 @@ Agent Tools
   +--> compare_hospitals_by_area / analyze_healthcare_access
   |      `--> CMS Hospital General Information
   |
-  `--> Census demographics / HRSA Primary Care HPSA
+  `--> get_hospital_demographics / analyze_healthcare_access
          `--> U.S. Census Bureau ACS / HRSA GIS service
   |
   v
@@ -66,7 +66,7 @@ Natural-Language Response
 - LangChain, LangGraph, OpenAI API
 - Requests, cachetools, python-dotenv
 - pytest (offline unit tests)
-- CMS public data APIs
+- CMS, U.S. Census Bureau ACS, and HRSA public data APIs
 
 ## Project Structure
 
@@ -101,12 +101,18 @@ rural-hospital-ai-agent/
 |   |   `-- trend_tools.py           # multi-year trend math
 |   |
 |   |-- tests/
+|   |   |-- conftest.py                  # offline test setup
 |   |   |-- test_financial_tools.py      # offline unit tests (pytest)
-|   |   |-- access_service_test.py       # live CMS, no LLM
+|   |   |-- test_integration.py          # offline integration tests (pytest)
+|   |   |-- access_service_test.py       # live CMS + Census + HRSA, no LLM
+|   |   |-- census_service_test.py       # live Census, no LLM
+|   |   |-- hrsa_service_test.py         # live HRSA, no LLM
 |   |   |-- financial_trend_test.py      # live CMS, no LLM
 |   |   |-- llm_test.py                  # live OpenAI
 |   |   |-- agent_test.py                # live OpenAI + CMS
 |   |   |-- area_comparison_agent_test.py
+|   |   |-- demographics_agent_test.py
+|   |   |-- healthcare_access_agent_test.py
 |   |   `-- trend_agent_test.py
 |   |
 |   |-- utils/
@@ -169,7 +175,10 @@ cp .env.example .env
 ```env
 OPENAI_API_KEY=your_openai_api_key
 OPENAI_MODEL=gpt-5.6-terra
+CENSUS_API_KEY=your_census_api_key
 ```
+
+`CENSUS_API_KEY` is a free key from https://api.census.gov/data/key_signup.html. It is needed for county demographics and the healthcare-access analysis; without it those tools still run but report demographics as unavailable.
 
 `.env` is git-ignored. Never commit it.
 
@@ -274,7 +283,8 @@ POST /agent/chat
 | `analyze_hospital_financials` | Single-year indicators (latest year or `year=`), including rural flag | Hospital Provider Cost Report |
 | `analyze_financial_trend` | Multi-year indicators, trend directions, distress signals | Hospital Provider Cost Report |
 | `compare_hospitals_by_area` | Other CMS-listed hospitals in the same county / ZIP / state | Hospital General Information |
-| `analyze_healthcare_access` | Preliminary same-county access proxy | Hospital General Information |
+| `analyze_healthcare_access` | Same-county access proxy, county demographics, and Primary Care HPSA designations | CMS Hospital General Information + Census ACS + HRSA |
+| `get_hospital_demographics` | County population, population 65+, and percent 65+ | U.S. Census ACS 2024 5-Year |
 
 All numbers are computed in Python; the LLM is used for intent understanding, tool routing, and explanation only. The system prompt instructs the agent to cite the data source, state missing data explicitly, and avoid predicting closure or recovery from historical trends.
 
@@ -292,21 +302,25 @@ Dataset years are cost-report years, not calendar years: a hospital's fiscal per
 
 ## Testing
 
-Offline unit tests for the indicator and trend math (no network, no API key):
+Offline tests (no network, no API key). `test_financial_tools.py` covers the indicator and trend math; `test_integration.py` runs the FastAPI routes, agent tools, cost-report service and analytics together with the CMS, Census and OpenAI boundaries faked, covering normal, edge and failure scenarios:
 
 ```bash
 pytest
 ```
 
-Live scripts (each hits CMS and/or OpenAI; run individually):
+Live scripts (each may access an external data source and/or OpenAI; run individually):
 
 ```bash
 python -m app.tests.llm_test                    # OpenAI connection
 python -m app.tests.agent_test                  # name -> CCN agent flow
-python -m app.tests.access_service_test         # area comparison (CMS only)
 python -m app.tests.financial_trend_test        # multi-year cost reports (CMS only)
 python -m app.tests.trend_agent_test            # trend tool through the agent
 python -m app.tests.area_comparison_agent_test  # area comparison through the agent
+python -m app.tests.access_service_test         # access analysis (CMS + Census + HRSA)
+python -m app.tests.census_service_test         # county demographics (Census only)
+python -m app.tests.hrsa_service_test           # Primary Care HPSAs (HRSA only)
+python -m app.tests.demographics_agent_test     # demographics through the agent
+python -m app.tests.healthcare_access_agent_test # access analysis through the agent
 ```
 
 A successful agent run shows the message flow `HumanMessage -> AIMessage (tool call) -> ToolMessage -> AIMessage`, confirming that the LLM used a tool instead of its own knowledge.
@@ -317,25 +331,20 @@ Current:
 
 - CMS Hospital General Information
 - CMS Hospital Provider Cost Report, dataset years 2011 to the latest release
-- U.S. Census Bureau ACS 2024 5-Year county population and age estimates
+- U.S. Census Bureau ACS 2024 5-Year estimates (county population and age 65+)
 - HRSA Primary Care Health Professional Shortage Area (HPSA) designations
 
-HRSA designations may apply to a specific population group or service
-area; they should not automatically be interpreted as designating the
-entire county. Census and HRSA results are reported as unavailable if
-their data sources cannot be queried.
-
-Planned:
-
-- Additional rural healthcare and geographic-access datasets
+HRSA designations may apply to a specific population group or service area; they should not automatically be interpreted as designating the entire county. Census and HRSA results are reported as unavailable if their data sources cannot be queried.
 
 ## Planned Next Steps
 
-- Conversation memory so the agent can follow up on clarification questions
-- Markdown rendering in the `/demo` chat UI
+- Conversation memory so the agent can follow up on clarification questions (next sprint, P0)
+- Markdown rendering in the `/demo` chat UI (next sprint, P0)
+- Tool-error handling inside the agent loop and a CI workflow running `pytest` (next sprint, P0)
 - Additional indicators from the cost report (current ratio, cash on hand, charity care, bad debt)
 - Peer rural-hospital financial comparison
 - Distance- and travel-time-based healthcare-access analysis
+- Additional Census variables and rural healthcare / geographic-access datasets
 - RAG-based retrieval from CMS methodology documents
 - Trend visualization
 
@@ -352,4 +361,4 @@ __pycache__/
 
 ## Status
 
-Working end-to-end AI Agent prototype with CMS retrieval, runtime dataset discovery, single-year and multi-year deterministic financial analytics, missing-data handling, LLM tool calling, FastAPI integration, and a minimal chat UI.
+Working end-to-end AI Agent prototype with CMS retrieval, runtime dataset discovery, single-year and multi-year deterministic financial analytics, Census demographics, HRSA Primary Care HPSA evidence, missing-data handling, LLM tool calling, FastAPI integration, and a minimal chat UI.
