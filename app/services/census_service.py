@@ -1,6 +1,11 @@
 import os
+import threading
+from copy import deepcopy
+
 import requests
 from dotenv import load_dotenv
+from cachetools import TTLCache
+
 from app.common.constants import CENSUS_FIELDS
 from app.services.cms_service import get_hospital_by_id
 from app.utils.state_utils import get_state_fips
@@ -8,7 +13,15 @@ from app.utils.state_utils import get_state_fips
 
 load_dotenv()
 
-# See https://api.census.gov/data/2024/acs/acs5/examples.html.
+# Keep successful lookups for 24 hours. The cache is bounded to avoid
+# unbounded memory growth; failed and not-found lookups are not cached.
+COUNTY_DEMOGRAPHICS_CACHE = TTLCache(
+    maxsize=5000,
+    ttl=86400,
+)
+_COUNTY_DEMOGRAPHICS_CACHE_LOCK = threading.Lock()
+
+# See https://api.census.gov/data/2024/acs/acs5/profile/variables.html.
 CENSUS_API_URL = (
     "https://api.census.gov/data/2024/"
     "acs/acs5/profile"
@@ -39,13 +52,25 @@ def get_county_demographics(
         )
 
     normalized_county = (
-        county_name
-        .strip()
-        .upper()
+        county_name.strip().upper()
+    )
+    if normalized_county.endswith(" COUNTY"):
+        normalized_county = normalized_county[:-7].strip()
+
+    normalized_state_fips = state_fips.strip()
+    cache_key = (
+        normalized_state_fips,
+        normalized_county,
     )
 
-    # Census field names. 
-    # See https://api.census.gov/data/2014/pep/natstprc/variables.html.
+    # Return a copy so callers cannot mutate the cached value.
+    with _COUNTY_DEMOGRAPHICS_CACHE_LOCK:
+        cached_result = COUNTY_DEMOGRAPHICS_CACHE.get(cache_key)
+        if cached_result is not None:
+            return deepcopy(cached_result)
+
+    # Census returns every county in the state; select the requested one
+    # locally after the response arrives.
     params = {
         "get": (
             "NAME,"
@@ -54,7 +79,7 @@ def get_county_demographics(
             f"{CENSUS_FIELDS.AGE_65_PLUS_PERCENT_FIELD}"
         ),
         "for": "county:*",
-        "in": f"state:{state_fips}",
+        "in": f"state:{normalized_state_fips}",
         "key": CENSUS_API_KEY,
     }
 
@@ -85,16 +110,11 @@ def get_county_demographics(
             .upper()
         )
 
-        # Example:
-        # "Greenbrier County"
-        #
-        # CMS gives:
-        # "GREENBRIER"
-        census_county_name = (
-            census_name
-            .replace(" COUNTY", "")
-            .strip()
-        )
+        # Census county names include the "County" suffix, while callers
+        # may pass county names without it.
+        census_county_name = census_name
+        if census_county_name.endswith(" COUNTY"):
+            census_county_name = census_county_name[:-7].strip()
 
         if (
             census_county_name
@@ -102,12 +122,12 @@ def get_county_demographics(
         ):
             continue
 
-        return {
+        data = {
             "county":
-                county_name,
+                normalized_county,
 
             "state_fips":
-                state_fips,
+                normalized_state_fips,
 
             "total_population":
                 int(
@@ -137,6 +157,12 @@ def get_county_demographics(
                 "ACS Demographic and Housing Estimates",
         }
 
+        # Store a separate copy so the returned object remains independent.
+        with _COUNTY_DEMOGRAPHICS_CACHE_LOCK:
+            COUNTY_DEMOGRAPHICS_CACHE[cache_key] = deepcopy(data)
+
+        return data
+
     return None
 
 
@@ -151,7 +177,8 @@ def get_hospital_demographics(
     automatically from CMS Hospital General Information.
     """
 
-    # 1. Find hospital from CMS
+    # Look up the hospital so its state and county do not need to be
+    # supplied separately.
     hospital = get_hospital_by_id(
         facility_id
     )
@@ -160,7 +187,7 @@ def get_hospital_demographics(
         return None
 
 
-    # 2. Ensure county information is available
+    # County demographics cannot be queried without the hospital's county.
     if not hospital.countyparish:
         return {
             "facility_id": facility_id,
@@ -171,13 +198,14 @@ def get_hospital_demographics(
         }
 
 
-    # 3. Convert hospital state to Census state FIPS
+    # Census uses the numeric state FIPS code rather than a state
+    # abbreviation such as "WV".
     state_fips = get_state_fips(
         hospital.state
     )
 
 
-    # 4. Retrieve county demographics
+    # Reuse the county-level lookup, including its cache.
     demographics = get_county_demographics(
         state_fips=state_fips,
         county_name=hospital.countyparish,
@@ -193,7 +221,7 @@ def get_hospital_demographics(
         }
 
 
-    # 5. Combine hospital context with Census data
+    # Include hospital identifiers alongside the county-level estimates.
     return {
         "facility_id":
             hospital.facility_id,

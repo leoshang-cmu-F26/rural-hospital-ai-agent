@@ -14,7 +14,7 @@ The system currently supports:
 - Financial and operational indicator calculation with missing-data detection and the CMS rural/urban classification
 - Multi-year financial trend analysis with deterministic trend directions and distress signals
 - Same-county, same-ZIP, and same-state hospital comparison
-- Preliminary county-level healthcare-access proxy
+- County-level healthcare-access analysis combining CMS hospital comparisons, Census demographics, and HRSA Primary Care HPSA designations
 - LLM tool calling through a LangGraph/LangChain agent
 - FastAPI endpoints and a minimal chat UI served at `/demo`
 
@@ -43,7 +43,10 @@ Agent Tools
   |             `--> dataset IDs discovered from https://data.cms.gov/data.json
   |
   +--> compare_hospitals_by_area / analyze_healthcare_access
-         `--> CMS Hospital General Information
+  |      `--> CMS Hospital General Information
+  |
+  `--> Census demographics / HRSA Primary Care HPSA
+         `--> U.S. Census Bureau ACS / HRSA GIS service
   |
   v
 Deterministic Python Analytics
@@ -86,9 +89,11 @@ rural-hospital-ai-agent/
 |   |   `-- hospital.py
 |   |
 |   |-- services/
-|   |   |-- access_service.py        # same-county / ZIP / state comparison
+|   |   |-- access_service.py        # area comparison + combined access analysis
+|   |   |-- census_service.py        # county ACS demographics
 |   |   |-- cms_service.py           # CMS Hospital General Information
-|   |   `-- cost_report_service.py   # cost reports, dataset discovery, multi-year history
+|   |   |-- cost_report_service.py   # cost reports, dataset discovery, multi-year history
+|   |   `-- hrsa_service.py          # county-associated Primary Care HPSAs
 |   |
 |   |-- tools/
 |   |   |-- agent_tools.py           # LangChain @tool wrappers
@@ -312,11 +317,16 @@ Current:
 
 - CMS Hospital General Information
 - CMS Hospital Provider Cost Report, dataset years 2011 to the latest release
+- U.S. Census Bureau ACS 2024 5-Year county population and age estimates
+- HRSA Primary Care Health Professional Shortage Area (HPSA) designations
+
+HRSA designations may apply to a specific population group or service
+area; they should not automatically be interpreted as designating the
+entire county. Census and HRSA results are reported as unavailable if
+their data sources cannot be queried.
 
 Planned:
 
-- HRSA
-- U.S. Census
 - Additional rural healthcare and geographic-access datasets
 
 ## Planned Next Steps
@@ -326,7 +336,6 @@ Planned:
 - Additional indicators from the cost report (current ratio, cash on hand, charity care, bad debt)
 - Peer rural-hospital financial comparison
 - Distance- and travel-time-based healthcare-access analysis
-- HRSA and Census integration
 - RAG-based retrieval from CMS methodology documents
 - Trend visualization
 

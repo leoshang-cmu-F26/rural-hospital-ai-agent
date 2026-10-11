@@ -268,19 +268,19 @@ def analyze_healthcare_access(
     """
     Analyze basic healthcare-access conditions around a hospital.
 
-    Use this tool for broader healthcare-access questions,
-    including questions about the possible access impact of
-    hospital closure or service reduction.
-
     The current analysis combines:
     - other CMS-listed hospitals in the same county
     - county population
     - population age 65 and older
     - percentage of county residents age 65 and older
+    - HRSA Primary Care HPSA designations
 
     This analysis does not yet include physical distance,
-    travel time, HRSA shortage designations, hospital capacity,
-    or service-line availability.
+    travel time, hospital capacity, or service-line availability.
+
+    HPSA designations may apply to specific population groups
+    or geographic areas and should not automatically be
+    interpreted as applying to the entire county.
     """
 
     result = get_healthcare_access_analysis(

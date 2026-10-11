@@ -227,11 +227,13 @@ SYSTEM_PROMPT = """
     - physical distance,
     - driving time,
     - service-line availability,
-    - hospital capacity,
-    - or HRSA shortage-area information.
+    - or hospital capacity.
 
     County-level population and age estimates are included when
     Census data is available, but they are not a vulnerability index.
+    The analysis also includes HRSA Primary Care HPSA designations
+    associated with the county. A designation may apply only to a
+    specific population group or service area, not the entire county.
 
     Clearly explain these limitations when relevant.
 

@@ -6,6 +6,9 @@ from app.services.cms_service import (
 from app.services.census_service import (
     get_hospital_demographics,
 )
+from app.services.hrsa_service import (
+    get_county_primary_care_hpsa,
+)
 
 def compare_hospitals_in_area(
     facility_id: str,
@@ -164,7 +167,7 @@ def get_healthcare_access_analysis(
     demographics.
     """
 
-    # 1. Get other hospitals in the same county
+    # 1. Retrieve the target hospital and same-county comparison.
     comparison = compare_hospitals_in_area(
         facility_id=facility_id,
         scope=SCOPE_FIELDS.COUNTY,
@@ -173,12 +176,12 @@ def get_healthcare_access_analysis(
     if comparison is None:
         return None
 
-    # 2. Get county demographics
+    # 2. Retrieve county demographics for the target hospital.
     demographics = get_hospital_demographics(
         facility_id
     )
 
-    # 3. Handle Census failure independently
+    # 3. Normalize available or missing demographic data.
     if (
         demographics is None
         or "error" in demographics
@@ -211,23 +214,61 @@ def get_healthcare_access_analysis(
                 demographics["source"],
         }
 
+    # 4. Use the resolved county and state to query HRSA.
     target_hospital = comparison[
         "target_hospital"
     ]
 
-    # 4. Combine the evidence
+    # Keep HRSA availability separate so a lookup failure does not
+    # discard the CMS comparison or Census results.
+    try:
+        hpsa = get_county_primary_care_hpsa(
+            state=target_hospital["state"],
+            county=target_hospital["county"],
+        )
+
+        hpsa_result = {
+            "available": True,
+
+            "has_active_primary_care_hpsa":
+                hpsa[
+                    "has_active_primary_care_hpsa"
+                ],
+
+            "active_designation_count":
+                hpsa[
+                    "active_designation_count"
+                ],
+
+            "max_hpsa_score":
+                hpsa["max_hpsa_score"],
+
+            "designations":
+                hpsa["designations"],
+
+            "source":
+                hpsa["source"],
+        }
+
+    except Exception as error:
+        hpsa_result = {
+            "available": False,
+            "error": str(error),
+        }
+
+    # 5. Combine hospital comparison, demographics, and HRSA evidence.
     return {
-        "facility_id":
-            target_hospital["facility_id"],
+        HOSPITAL_FIELDS.FACILITY_ID_FIELD:
+            target_hospital[HOSPITAL_FIELDS.FACILITY_ID_FIELD],
 
-        "facility_name":
-            target_hospital["facility_name"],
+        HOSPITAL_FIELDS.FACILITY_NAME_FIELD:
+            target_hospital[HOSPITAL_FIELDS.FACILITY_NAME_FIELD],
 
-        "state":
-            target_hospital["state"],
+        HOSPITAL_FIELDS.STATE_FIELD:
+            target_hospital[HOSPITAL_FIELDS.STATE_FIELD],
 
-        "county":
-            target_hospital["county"],
+        HOSPITAL_FIELDS.COUNTY_FIELD:
+            target_hospital[HOSPITAL_FIELDS.COUNTY_FIELD],
 
         "alternative_hospital_count":
             comparison["comparison_count"],
@@ -237,6 +278,9 @@ def get_healthcare_access_analysis(
 
         "county_demographics":
             demographic_result,
+
+        "primary_care_hpsa":
+            hpsa_result,
 
         "limitations": [
             (
@@ -250,10 +294,11 @@ def get_healthcare_access_analysis(
             (
                 "Physical distance and travel time are "
                 "not yet included."
-            ),
+            ),  
             (
-                "HRSA shortage-area information is "
-                "not yet included."
+                "HPSA designations may apply to specific "
+                "population groups or geographic areas "
+                "rather than the entire county."
             ),
         ],
     }

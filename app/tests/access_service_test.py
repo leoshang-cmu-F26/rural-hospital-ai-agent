@@ -149,6 +149,24 @@ def test_zip_case():
     assert result is not None
     assert result["scope"] == "zip"
     assert result["area"] == "24970"
+    hpsa = result["primary_care_hpsa"]
+    
+    assert hpsa["available"] is True
+
+    assert (
+        hpsa["has_active_primary_care_hpsa"]
+        is True
+    )
+
+    assert (
+        hpsa["active_designation_count"]
+        == 1
+    )
+
+    assert (
+        hpsa["max_hpsa_score"]
+        == 18.0
+    )
 
     print(
         "PASS:",
