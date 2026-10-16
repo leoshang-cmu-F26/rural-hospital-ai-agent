@@ -93,6 +93,7 @@ def get_county_primary_care_hpsa(
         "f": "json",
     }
 
+    report_progress("Querying HRSA primary-care shortage designations…")
     response = requests.get(
         HRSA_PRIMARY_CARE_HPSA_URL,
         params=params,
@@ -213,3 +214,5 @@ def get_county_primary_care_hpsa(
 
     # 5. Return the county-level summary and matching designations.
     return result
+
+from app.services.agent_progress import report_progress

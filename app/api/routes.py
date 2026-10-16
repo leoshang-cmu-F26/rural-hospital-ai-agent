@@ -1,3 +1,5 @@
+from fastapi.responses import StreamingResponse
+from app.services.chat_stream import stream_agent_events
 import logging
 from fastapi import APIRouter, HTTPException, Query
 
@@ -83,8 +85,11 @@ def get_hospitals(state: str):
     "/hospitals/search",
     response_model=list[Hospital]
 )
-def search_hospitals(name: str):
-    return search_hospitals_by_name(name)
+def search_hospitals(name: str, state: str | None = None, county: str | None = None):
+    try:
+        return search_hospitals_by_name(name, state=state, county=county)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
 
 
 @router.get(
@@ -307,7 +312,10 @@ def chat_with_agent(request: AgentRequest):
         )
 
     try:
-        response = ask_hospital_agent(message)
+        response = ask_hospital_agent(message, history=request.history,
+                                      current_facility=request.current_facility,
+                                      **({"comparison_facilities": request.comparison_facilities}
+                                         if request.comparison_facilities else {}))
 
     # The agent run spans OpenAI, LangGraph and every tool; any
     # uncaught exception there would otherwise surface as a bare
@@ -328,3 +336,18 @@ def chat_with_agent(request: AgentRequest):
     )
 
 # endregion
+
+
+@router.post("/agent/chat/stream")
+def chat_with_agent_stream(request: AgentRequest):
+    message = request.message.strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="message must not be blank")
+    return StreamingResponse(
+        stream_agent_events(message, ask_hospital_agent,
+                            history=request.history, current_facility=request.current_facility,
+                                      **({"comparison_facilities": request.comparison_facilities}
+                                         if request.comparison_facilities else {})),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

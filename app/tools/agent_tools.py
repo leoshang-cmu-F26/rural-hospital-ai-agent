@@ -210,33 +210,25 @@ def analyze_financial_trend(
 
 
 @tool
-def search_hospital(name: str) -> dict:
+def search_hospital(name: str, state: str | None = None,
+                    county: str | None = None) -> dict:
+    """Find CMS hospitals by name, optionally constrained to state and county.
+
+    Pass state/county whenever the user provides them. State accepts a full
+    name or abbreviation; county accepts an optional County suffix. Multiple
+    matches require clarification. Never drop location constraints silently.
+    Results include city, county, state and CCN. This is not a tribal clinic
+    directory and does not infer historical names or fuzzy aliases.
     """
-    Search CMS hospital data by hospital name.
-
-    Use this tool when the user provides a hospital name
-    but does not provide a CMS Certification Number (CCN).
-
-    Returns matching hospitals with their facility IDs,
-    names, city, state, ZIP code, and hospital type.
-    """
-
-    hospitals = search_hospitals_by_name(name)
-
-    if not hospitals:
-        return {
-            "query": name,
-            "count": 0,
-            "hospitals": [],
-        }
-
+    try:
+        hospitals = search_hospitals_by_name(name, state=state, county=county)
+    except ValueError as error:
+        return {"error": str(error), "query": name}
     return {
-        "query": name,
-        "count": len(hospitals),
-        "hospitals": [
-            hospital.model_dump()
-            for hospital in hospitals[:5]
-        ],
+        "query": name, "filters": {"state": state, "county": county},
+        "count": len(hospitals), "returned_count": min(len(hospitals), 5),
+        "truncated": len(hospitals) > 5,
+        "hospitals": [hospital.model_dump() for hospital in hospitals[:5]],
     }
 
 
@@ -266,20 +258,22 @@ def analyze_healthcare_access(
     facility_id: str,
 ) -> dict:
     """
-    Analyze basic healthcare-access conditions around a hospital.
-    The current analysis combines:
+    Analyze healthcare access around a hospital using:
     - other CMS-listed hospitals in the same county
-    - county population
-    - population age 65 and older
-    - percentage of county residents age 65 and older
+    - county population and age 65+ demographics
     - HRSA Primary Care HPSA designations
+    - up to five nearest geocoded hospitals in the same state,
+      ranked by straight-line distance in miles
 
-    This analysis does not yet include physical distance,
-    travel time, hospital capacity, or service-line availability.
+    Each evidence section reports its availability.
+    Distance analysis includes candidate and skipped-geocoding counts.
+
+    Distances are not driving distances or travel times.
+    Candidates may be in other counties, but cross-state hospitals
+    are excluded. Capacity and service availability are not assessed.
 
     HPSA designations may apply to specific population groups
-    or geographic areas and should not automatically be
-    interpreted as applying to the entire county.
+    or geographic areas rather than the entire county.
     """
 
     result = get_healthcare_access_analysis(
@@ -452,7 +446,69 @@ def get_hospital_demographics(
 
     return result
 
+
+@tool
+def analyze_facility_access_by_address(
+    facility_name: str, address: str, city: str, state: str,
+    zip_code: str, address_verified: bool = False,
+) -> dict:
+    """Analyze healthcare access at a user-confirmed facility address without a CCN.
+
+    Require a facility name, physical street address, city, state and ZIP.
+    Set address_verified=True only when the user explicitly confirms the
+    address is verified. Never invent an address or claim independent verification.
+    Returns Census address/county resolution, county demographics, HRSA HPSA
+    evidence and nearest CMS-listed same-state hospitals in straight-line miles.
+    Address matching does not verify the facility identity or tribal affiliation.
+    County data is not tribal population or facility service-area evidence.
+    No hospital financial data or rural classification is inferred.
+    """
+    from app.services.facility_access_service import analyze_facility_access
+    return analyze_facility_access(
+        facility_name, address, city, state, zip_code, address_verified)
+
+
+
+@tool
+def investigate_hospital(facility_id: str, start_year: int | None = None,
+                         end_year: int | None = None) -> dict:
+    """Investigate one resolved CMS hospital: latest financials, multi-year
+    financial trend and healthcare access in one report. Use for full/general
+    hospital investigations, not single-domain questions. Optional year bounds
+    apply to trend only; latest financials retain their actual report year.
+    Resolve names with search_hospital and supplied state/county first. Partial
+    data failures are reported separately. No risk score or closure prediction.
+    """
+    from app.services.investigation_service import build_hospital_investigation
+    return build_hospital_investigation(
+        facility_id, analyze_hospital_financials.func, analyze_financial_trend.func,
+        analyze_healthcare_access.func, start_year=start_year, end_year=end_year)
+
+
+
+@tool
+def compare_hospital_investigations(
+    first_facility_id: str, second_facility_id: str, year: int | None = None,
+    start_year: int | None = None, end_year: int | None = None,
+) -> dict:
+    """Compare two distinct, resolved CMS hospitals: aligned financials,
+    financial trends and healthcare access. Resolve each name/state/county first.
+    year optionally requests an exact financial dataset year; otherwise search
+    for the latest retrieved common year. Trend bounds are separate. Differences
+    are calculated only for matching fiscal periods and mean second minus first.
+    Missing data must be reported. Do not infer a winner or closure risk ranking.
+    """
+    from app.services.comparison_service import compare_hospitals
+    return compare_hospitals(
+        first_facility_id, second_facility_id, analyze_hospital_financials.func,
+        analyze_financial_trend.func, analyze_healthcare_access.func,
+        year=year, start_year=start_year, end_year=end_year)
+
+
 HOSPITAL_AGENT_TOOLS = [
+    compare_hospital_investigations,
+    investigate_hospital,  # Investigate a hospital with financials, trend, and access in one report.
+    analyze_facility_access_by_address,  # Analyze healthcare access at a user-confirmed facility address without a CCN.
     search_hospital,  # Find CMS hospitals by name.
     get_hospital_by_ccn,  # Retrieve hospital details by CCN.
     analyze_hospital_financials,  # Calculate financial indicators from CMS reports.

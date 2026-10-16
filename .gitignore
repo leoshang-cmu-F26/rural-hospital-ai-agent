@@ -15,3 +15,7 @@ __pycache__/
 .DS_Store
 # Pytest
 .pytest_cache/
+
+# Runtime hospital coordinate cache
+data/*.db
+data/*.db-*

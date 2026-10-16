@@ -84,6 +84,7 @@ def get_county_demographics(
         "key": CENSUS_API_KEY,
     }
 
+    report_progress("Querying Census county population and age estimates…")
     response = requests.get(
         CENSUS_API_URL,
         params=params,
@@ -201,16 +202,17 @@ def get_hospital_demographics(
 
     # Census uses the numeric state FIPS code rather than a state
     # abbreviation such as "WV".
-    state_fips = get_state_fips(
-        hospital.state
-    )
-
-
-    # Reuse the county-level lookup, including its cache.
-    demographics = get_county_demographics(
-        state_fips=state_fips,
-        county_name=hospital.countyparish,
-    )
+    try:
+        state_fips = get_state_fips(hospital.state)
+        # Reuse the county-level lookup, including its cache.
+        demographics = get_county_demographics(
+            state_fips=state_fips, county_name=hospital.countyparish,
+        )
+    except (ValueError, requests.RequestException) as error:
+        return {
+            "facility_id": facility_id,
+            "error": f"Census demographics unavailable: {error}",
+        }
 
     if demographics is None:
         return {
@@ -238,3 +240,4 @@ def get_hospital_demographics(
 
         **demographics,
     }
+from app.services.agent_progress import report_progress

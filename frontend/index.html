@@ -6,7 +6,7 @@
 
     <title>Rural Hospital AI Agent</title>
 
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css?v=20261016-comparison">
 </head>
 
 <body>
@@ -16,12 +16,13 @@
     <header>
         <h1>Rural Hospital AI Agent</h1>
         <p>
-            Investigate rural hospital financial conditions
-            using public CMS data.
+            Investigate hospital finances, trends and healthcare access
+            using public CMS, Census and HRSA data.
         </p>
     </header>
 
     <main>
+        <div id="current-facility" class="current-facility" hidden aria-live="polite"></div>
 
         <div id="chat-box" class="chat-box">
 
@@ -31,8 +32,8 @@
                 </div>
 
                 <div class="message-content">
-                    Ask me about a hospital's financial condition.
-                    You can use either a hospital name or a CMS CCN.
+                    Ask about a hospital by name, state and county, or use its CMS CCN.
+                    Request a full investigation or focus on finances, trends or healthcare access.
                 </div>
             </div>
 
@@ -40,36 +41,18 @@
 
 
         <div class="examples">
-
-            <button class="example-button"
-                    onclick="useExample(
-                    'Analyze the financial condition of Greenbrier Valley Medical Center.'
-                    )">
-                Analyze Greenbrier Valley Medical Center
-            </button>
-
-            <button class="example-button"
-                    onclick="useExample(
-                    'Find the hospital whose CCN is 510002.'
-                    )">
-                Find hospital by CCN
-            </button>
-
-            <button class="example-button"
-                    onclick="useExample(
-                    'Find the CCN of Greenbrier Valley Medical Center.'
-                    )">
-                Find CCN by hospital name
-            </button>
-
+            <button class="example-button" onclick="useExample('Investigate Mile Bluff Medical Center in Juneau County, Wisconsin. Include financials, trends, healthcare access and data gaps.')">Full hospital investigation</button>
+            <button class="example-button" onclick="useExample('Find Reedsburg Area Medical Center in Sauk County, WI.')">Find by name &amp; location</button>
+            <button class="example-button" onclick="useExample('Analyze its financial distress.')">Financial follow-up</button>
+            <button class="example-button" onclick="useExample('Compare Mile Bluff Medical Center in Juneau County, Wisconsin, and Reedsburg Area Medical Center in Sauk County, Wisconsin. Include financial condition and healthcare access.')">Compare two hospitals</button>
+            <button class="example-button clear-button" onclick="clearChat()">Clear chat</button>
         </div>
-
 
         <div class="input-area">
 
             <textarea
                 id="message-input"
-                placeholder="Ask about a rural hospital..."
+                placeholder="Hospital name, state/county, or a follow-up question…" aria-label="Message to hospital agent"
                 rows="2"
             ></textarea>
 
@@ -86,7 +69,8 @@
 
 </div>
 
-<script src="app.js"></script>
+<script src="markdown.js?v=20261016-comparison"></script>
+<script src="app.js?v=20261016-comparison"></script>
 
 </body>
 </html>

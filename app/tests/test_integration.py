@@ -151,11 +151,13 @@ def fake_hospital_by_id(facility_id: str):
     return HOSPITALS.get(facility_id.strip())
 
 
-def fake_search_by_name(name: str):
+def fake_search_by_name(name: str, state=None, county=None):
     return [
         hospital
         for hospital in HOSPITALS.values()
         if name.upper() in hospital.facility_name
+        and (state is None or hospital.state == normalize_state(state))
+        and (county is None or (hospital.countyparish or "").upper() == county.upper().removesuffix(" COUNTY"))
     ]
 
 
@@ -236,6 +238,20 @@ CENSUS_ROWS = [
     ["Greenbrier County, West Virginia", "32000", "8000", "25.0", "54", "025"],
     ["Kanawha County, West Virginia", "180000", "40000", "22.2", "54", "039"],
 ]
+
+
+@pytest.fixture(autouse=True)
+def access_boundaries(monkeypatch):
+    """Keep added HRSA/distance boundaries offline and independent of Census mocks."""
+    monkeypatch.setattr(access_service, "get_county_primary_care_hpsa", lambda **kwargs: {
+        "has_active_primary_care_hpsa": False, "active_designation_count": 0,
+        "max_hpsa_score": None, "designations": [], "source": "HRSA test fixture"})
+    monkeypatch.setattr(access_service, "get_nearest_hospitals", lambda **kwargs: {
+        "nearest_hospitals": [], "candidate_count": 0, "returned_count": 0,
+        "skipped_geocoding_count": 0, "candidate_scope": "same_state"})
+    census_service.COUNTY_DEMOGRAPHICS_CACHE.clear()
+    yield
+    census_service.COUNTY_DEMOGRAPHICS_CACHE.clear()
 
 
 @pytest.fixture
@@ -444,7 +460,7 @@ def test_healthcare_access_combines_cms_and_census(census):
 
 def test_chat_route_returns_agent_answer(monkeypatch):
     monkeypatch.setattr(
-        routes, "ask_hospital_agent", lambda message: f"answer to: {message}"
+        routes, "ask_hospital_agent", lambda message, **kwargs: f"answer to: {message}"
     )
 
     response = client.post(
@@ -560,7 +576,8 @@ def test_ambiguous_hospital_name_returns_every_match():
 def test_search_with_no_match_is_empty_not_an_error():
     assert client.get("/hospitals/search", params={"name": "ZZZNOPE"}).json() == []
     assert search_hospital.invoke({"name": "ZZZNOPE"}) == {
-        "query": "ZZZNOPE", "count": 0, "hospitals": [],
+        "query": "ZZZNOPE", "filters": {"state": None, "county": None},
+        "count": 0, "returned_count": 0, "truncated": False, "hospitals": [],
     }
 
 
@@ -694,7 +711,7 @@ def test_territory_without_fips_mapping_degrades_gracefully(census):
 
 
 def test_chat_route_reports_agent_failure_as_502(monkeypatch):
-    def broken_agent(message: str) -> str:
+    def broken_agent(message: str, **kwargs) -> str:
         raise RuntimeError("OpenAI unavailable")
 
     monkeypatch.setattr(routes, "ask_hospital_agent", broken_agent)

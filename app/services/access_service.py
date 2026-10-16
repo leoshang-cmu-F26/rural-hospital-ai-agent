@@ -1,3 +1,4 @@
+import requests
 from app.common.constants import (HOSPITAL_FIELDS, SCOPE_FIELDS)
 from app.services.cms_service import (
     get_hospital_by_id,
@@ -9,6 +10,7 @@ from app.services.census_service import (
 from app.services.hrsa_service import (
     get_county_primary_care_hpsa,
 )
+from app.services.distance_service import get_nearest_hospitals
 
 def compare_hospitals_in_area(
     facility_id: str,
@@ -44,7 +46,7 @@ def compare_hospitals_in_area(
 
     if target_hospital is None:
         return None
-    
+
 
     # 4. Get all hospitals in the target hospital's state
     hospitals_in_state = get_hospitals_by_state(target_hospital.state)
@@ -175,10 +177,24 @@ def get_healthcare_access_analysis(
 
     if comparison is None:
         return None
+    comparison_error = comparison.get("error")
+    if comparison_error:
+        hospital = get_hospital_by_id(facility_id)
+        if hospital is None:
+            return None
+        comparison = {
+            "target_hospital": {
+                "facility_id": hospital.facility_id,
+                "facility_name": hospital.facility_name,
+                "state": hospital.state, "county": hospital.countyparish,
+            },
+            "comparison_count": None,
+            "comparison_hospitals": [],
+        }
 
     # 2. Retrieve county demographics for the target hospital.
     demographics = get_hospital_demographics(
-        facility_id
+        facility_id=facility_id
     )
 
     # 3. Normalize available or missing demographic data.
@@ -215,13 +231,13 @@ def get_healthcare_access_analysis(
         }
 
     # 4. Use the resolved county and state to query HRSA.
-    target_hospital = comparison[
-        "target_hospital"
-    ]
+    target_hospital = comparison["target_hospital"]
 
     # Keep HRSA availability separate so a lookup failure does not
     # discard the CMS comparison or Census results.
     try:
+        if not target_hospital.get("county"):
+            raise ValueError("County information is unavailable.")
         hpsa = get_county_primary_care_hpsa(
             state=target_hospital["state"],
             county=target_hospital["county"],
@@ -256,6 +272,31 @@ def get_healthcare_access_analysis(
             "error": str(error),
         }
 
+
+    # Keep other evidence available if distance analysis fails.
+    try:
+        distance_analysis = get_nearest_hospitals(
+            facility_id=facility_id,
+            limit=5,
+        )
+
+        if distance_analysis is None:
+            distance_result = {
+                "available": False,
+                "error": "Hospital coordinates unavailable.",
+            }
+        else:
+            distance_result = {
+                "available": True,
+                **distance_analysis,
+            }
+
+    except requests.RequestException as error:
+        distance_result = {
+            "available": False,
+            "error": str(error),
+        }
+
     # 5. Combine hospital comparison, demographics, and HRSA evidence.
     return {
         HOSPITAL_FIELDS.FACILITY_ID_FIELD:
@@ -270,6 +311,9 @@ def get_healthcare_access_analysis(
         HOSPITAL_FIELDS.COUNTY_FIELD:
             target_hospital[HOSPITAL_FIELDS.COUNTY_FIELD],
 
+        "county_comparison_available": not bool(comparison_error),
+        "county_comparison_error": comparison_error,
+
         "alternative_hospital_count":
             comparison["comparison_count"],
 
@@ -282,6 +326,9 @@ def get_healthcare_access_analysis(
         "primary_care_hpsa":
             hpsa_result,
 
+        "distance_analysis":
+            distance_result,
+
         "limitations": [
             (
                 "Same-county hospital count is an "
@@ -292,9 +339,12 @@ def get_healthcare_access_analysis(
                 "exact patient service area."
             ),
             (
-                "Physical distance and travel time are "
-                "not yet included."
-            ),  
+                "Distances are straight-line distances, not driving distance or travel time."
+            ),
+            (
+                "Nearest-hospital candidates are limited to the same state; "
+                "hospitals without matched coordinates are excluded."
+            ),
             (
                 "HPSA designations may apply to specific "
                 "population groups or geographic areas "

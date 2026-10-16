@@ -362,3 +362,63 @@ __pycache__/
 ## Status
 
 Working end-to-end AI Agent prototype with CMS retrieval, runtime dataset discovery, single-year and multi-year deterministic financial analytics, Census demographics, HRSA Primary Care HPSA evidence, missing-data handling, LLM tool calling, FastAPI integration, and a minimal chat UI.
+
+
+## Location-aware search and full investigation
+
+The chat accepts a hospital name with an optional state and county. These
+constraints are passed to CMS search; the agent must clarify multiple matches
+and must not silently drop location constraints. Search normalizes case and
+punctuation, but does not infer old names or provide a tribal clinic directory.
+CMS hospital list/search queries use explicit pagination before reporting counts.
+
+Example prompts:
+
+- `Find Mile Bluff Medical Center in Juneau County, Wisconsin.`
+- `Investigate Mile Bluff Medical Center in Juneau County, Wisconsin. Include financials, trends, healthcare access, and data gaps.`
+- `Now investigate Reedsburg Area Medical Center in Sauk County, WI.`
+- `Analyze its financial distress.`
+
+Full investigations use `investigate_hospital` after identifying a CCN, composing
+existing latest-year financial, multi-year trend and healthcare-access tools.
+One unavailable section does not discard other evidence. No combined risk score
+or closure prediction is produced. Trend year bounds do not change the separate
+latest financial report; the response must show actual periods.
+
+The demo renders a limited Markdown subset using DOM nodes, including headings,
+emphasis, lists, code, safe links and tables. Raw HTML is treated as text. Evidence
+cards show tool-supplied sources, financial report periods, and missing-data
+status; these cards are not inferred from generated prose. The current hospital
+and CCN are shown above the chat. Clear chat resets the bounded local context.
+Cards/progress are not included in the next message's conversation history.
+
+Run with `python -m uvicorn app.main:app --reload`, open
+`http://127.0.0.1:8000/demo/`, and hard-refresh after frontend changes.
+Offline checks for this upgrade:
+`python -m unittest app.tests.hospital_upgrade_test app.tests.chat_context_test app.tests.entrypoint_contract_test app.tests.chat_stream_test app.tests.facility_access_service_test app.tests.coordinate_cache_test`.
+
+
+## Two-hospital comparison
+
+Ask: `Compare Mile Bluff Medical Center in Juneau County, Wisconsin, and
+Reedsburg Area Medical Center in Sauk County, Wisconsin. Include financial
+condition and healthcare access.` The agent resolves both names then calls
+`compare_hospital_investigations`. Two distinct CCNs are required.
+
+Financial reports are checked from newest to oldest across the available CMS
+dataset catalog, or for an explicitly requested year. A common dataset year
+is shown separately from each hospital's actual fiscal dates. Numerical
+differences are returned only when both fiscal periods match; direction is
+second hospital minus first, and percentage metrics use percentage points.
+If no common year is retrieved, separate latest retrieved reports remain
+unaligned context; no financial differences or winner are invented. Failed
+newer lookups are disclosed rather than claimed to prove a latest common year.
+Trends and healthcare-access results retain their own coverage and data gaps.
+
+The browser keeps only two compact comparison identities, in addition to the
+bounded recent conversation. It does not replay complete comparison reports.
+The active pair is displayed above the chat. A new single-hospital selection
+or Clear chat resets the pair. Singular follow-ups with two active targets
+require clarification. Refreshing the page resets local context.
+
+Offline comparison checks: `python -m unittest app.tests.comparison_service_test`.
