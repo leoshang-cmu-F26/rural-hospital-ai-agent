@@ -1,3 +1,4 @@
+/* Global sizing and base typography. */
 * {
     box-sizing: border-box;
 }
@@ -9,6 +10,7 @@ body {
     color: #222;
 }
 
+/* Application shell, page title and chat container. */
 .app-container {
     width: 900px;
     max-width: 95%;
@@ -36,6 +38,7 @@ main {
     overflow: hidden;
 }
 
+/* Dialogue scrolling, speaker labels and safe message content. */
 .chat-box {
     height: 500px;
     overflow-y: auto;
@@ -73,6 +76,7 @@ main {
     color: white;
 }
 
+/* Example questions and message input controls. */
 .examples {
     padding: 12px 20px;
     border-top: 1px solid #eee;
@@ -123,6 +127,7 @@ textarea {
     background: #444;
 }
 
+/* Request progress is temporary and separate from conversation history. */
 .agent-progress {
     max-width: 90%;
     padding: 14px 16px;
@@ -138,8 +143,10 @@ textarea {
 #send-button:disabled { cursor: wait; opacity: 0.65; }
 
 
+/* Active single-hospital or comparison identity. */
 .current-facility { padding: 12px 24px; background: #eaf3f0; color: #234f43; border-bottom: 1px solid #d5e5df; line-height: 1.5; overflow-wrap: anywhere; }
 .current-facility[hidden] { display: none; }
+/* Limited Markdown rendering, including horizontally scrollable tables. */
 .markdown-content { white-space: normal; overflow-wrap: anywhere; }
 .markdown-content > :first-child { margin-top: 0; }
 .markdown-content > :last-child { margin-bottom: 0; }
@@ -157,6 +164,7 @@ textarea {
 .markdown-content table { border-collapse: collapse; width: 100%; font-size: .9rem; }
 .markdown-content th, .markdown-content td { border: 1px solid #cbd4d0; padding: 8px 10px; text-align: left; }
 .markdown-content th { background: #e0e9e5; }
+/* Tool-derived sources, reporting periods and evidence availability. */
 .evidence-panel { margin-top: 8px; padding: 10px 12px; background: #f8faf9; border: 1px solid #dce4e0; border-radius: 8px; font-size: 12px; line-height: 1.5; }
 .evidence-panel summary { cursor: pointer; font-weight: 600; }
 .evidence-item { padding: 10px 0; border-top: 1px solid #e1e7e4; margin-top: 8px; overflow-wrap: anywhere; }
@@ -166,4 +174,5 @@ textarea {
 .evidence-badge.unavailable { background: #f6dfdf; color: #823636; }
 .evidence-detail { margin-top: 4px; color: #66532d; }
 .clear-button { margin-left: auto; }
+/* Compact layout for small screens; keep wide tables horizontally scrollable. */
 @media (max-width: 600px) { .chat-box { padding: 14px; } .message { max-width: 96%; } .current-facility { padding: 10px 14px; } .input-area { gap: 8px; padding: 10px; } #send-button { width: 68px; } }

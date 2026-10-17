@@ -1,7 +1,11 @@
+"""Typed financial records, computed indicators and multi-year evidence summaries."""
+
 from pydantic import BaseModel
 
 
 class HospitalFinancialRecord(BaseModel):
+    """Parsed financial source fields for one selected CMS report."""
+
     facility_id: str
     hospital_name: str
     fiscal_year_begin: str
@@ -32,6 +36,8 @@ class HospitalFinancialRecord(BaseModel):
 
 
 class FinancialIndicators(BaseModel):
+    """Calculated metrics and explicit missing input fields for one report."""
+
     facility_id: str
     hospital_name: str
 
@@ -54,10 +60,12 @@ class FinancialIndicators(BaseModel):
 
 
 class FinancialHistory(BaseModel):
+    """Reports with missing filings separated from unavailable datasets."""
+
     facility_id: str
     years_requested: list[int]
     years_with_data: list[int]
-    # Dataset was reachable but the hospital filed no report.
+    # Dataset was reachable but no matching hospital report was found.
     years_without_report: list[int]
     # Dataset could not be retrieved; value is the reason.
     years_unavailable: dict[int, str]
@@ -65,6 +73,8 @@ class FinancialHistory(BaseModel):
 
 
 class IndicatorTrend(BaseModel):
+    """Observed endpoints and deterministic direction for one indicator."""
+
     indicator: str
     values_by_year: dict[int, float | None]
     years_available: int
@@ -83,6 +93,8 @@ class IndicatorTrend(BaseModel):
 
 
 class FinancialTrend(BaseModel):
+    """Combined yearly indicators, trend summaries and reported distress signals."""
+
     facility_id: str
     hospital_name: str | None = None
 

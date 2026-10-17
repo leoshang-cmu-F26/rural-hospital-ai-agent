@@ -1,3 +1,5 @@
+"""Agent-facing tools: validate inputs and expose deterministic service results."""
+
 from langchain_core.tools import tool
 from app.common.constants import HOSPITAL_FIELDS
 from app.services.cms_service import (
@@ -146,32 +148,30 @@ def analyze_financial_trend(
 
     # Keep the ToolMessage compact: one row per year with only the
     # fields the LLM needs to explain the trend.
-    yearly_rows = [
-        {
-            "report_year": item.report_year,
-            "fiscal_year_begin": item.fiscal_year_begin,
-            "fiscal_year_end": item.fiscal_year_end,
-            "operating_margin": item.operating_margin,
-            "occupancy_rate": item.occupancy_rate,
-            "liability_to_asset_ratio": item.liability_to_asset_ratio,
-            "cost_to_charge_ratio": item.cost_to_charge_ratio,
-            "missing_fields": item.missing_fields,
-        }
-        for item in trend.yearly_indicators
-    ]
+    yearly_rows = []
+    for item in trend.yearly_indicators:
+        yearly_rows.append({
+            'report_year': item.report_year,
+            'fiscal_year_begin': item.fiscal_year_begin,
+            'fiscal_year_end': item.fiscal_year_end,
+            'operating_margin': item.operating_margin,
+            'occupancy_rate': item.occupancy_rate,
+            'liability_to_asset_ratio': item.liability_to_asset_ratio,
+            'cost_to_charge_ratio': item.cost_to_charge_ratio,
+            'missing_fields': item.missing_fields,
+        })
 
-    indicator_trends = {
-        name: {
-            "first_year": summary.first_year,
-            "first_value": summary.first_value,
-            "last_year": summary.last_year,
-            "last_value": summary.last_value,
-            "change": summary.change,
-            "direction": summary.direction,
-            "years_available": summary.years_available,
+    indicator_trends = {}
+    for (name, summary) in trend.indicator_trends.items():
+        indicator_trends[name] = {
+            'first_year': summary.first_year,
+            'first_value': summary.first_value,
+            'last_year': summary.last_year,
+            'last_value': summary.last_value,
+            'change': summary.change,
+            'direction': summary.direction,
+            'years_available': summary.years_available,
         }
-        for name, summary in trend.indicator_trends.items()
-    }
 
     return {
         "source": f"{COST_REPORT_SOURCE} (multi-year)",
@@ -224,11 +224,16 @@ def search_hospital(name: str, state: str | None = None,
         hospitals = search_hospitals_by_name(name, state=state, county=county)
     except ValueError as error:
         return {"error": str(error), "query": name}
+    # Display a compact candidate list, retaining total count and truncation status.
+    hospital_rows = []
+    for hospital in hospitals[:5]:
+        hospital_rows.append(hospital.model_dump())
+
     return {
         "query": name, "filters": {"state": state, "county": county},
         "count": len(hospitals), "returned_count": min(len(hospitals), 5),
         "truncated": len(hospitals) > 5,
-        "hospitals": [hospital.model_dump() for hospital in hospitals[:5]],
+        "hospitals": hospital_rows,
     }
 
 
@@ -345,41 +350,24 @@ def compare_hospitals_by_area(
     # State comparisons may contain many hospitals.
     # Limit the records sent to the LLM to reduce token usage.
     else:
-        effective_limit = (
-            limit
-            if limit is not None
-            else MAX_HOSPITALS_FOR_AGENT
-        )
+        if limit is not None:
+            effective_limit = limit
+        else:
+            effective_limit = MAX_HOSPITALS_FOR_AGENT
 
         selected_hospitals = comparison_hospitals[
             :effective_limit
         ]
 
     # Only send fields that are useful to the LLM.
-    compact_hospitals = [
-        {
-            HOSPITAL_FIELDS.FACILITY_ID_FIELD:
-                hospital[
-                    HOSPITAL_FIELDS.FACILITY_ID_FIELD
-                ],
-
-            HOSPITAL_FIELDS.FACILITY_NAME_FIELD:
-                hospital[
-                    HOSPITAL_FIELDS.FACILITY_NAME_FIELD
-                ],
-
-            HOSPITAL_FIELDS.CITYTOWN_FIELD:
-                hospital[
-                    HOSPITAL_FIELDS.CITYTOWN_FIELD
-                ],
-
-            HOSPITAL_FIELDS.COUNTY_FIELD:
-                hospital[
-                    HOSPITAL_FIELDS.COUNTY_FIELD
-                ],
-        }
-        for hospital in selected_hospitals
-    ]
+    compact_hospitals = []
+    for hospital in selected_hospitals:
+        compact_hospitals.append({
+            HOSPITAL_FIELDS.FACILITY_ID_FIELD: hospital[HOSPITAL_FIELDS.FACILITY_ID_FIELD],
+            HOSPITAL_FIELDS.FACILITY_NAME_FIELD: hospital[HOSPITAL_FIELDS.FACILITY_NAME_FIELD],
+            HOSPITAL_FIELDS.CITYTOWN_FIELD: hospital[HOSPITAL_FIELDS.CITYTOWN_FIELD],
+            HOSPITAL_FIELDS.COUNTY_FIELD: hospital[HOSPITAL_FIELDS.COUNTY_FIELD],
+        })
 
     return {
         "source":
@@ -479,6 +467,7 @@ def investigate_hospital(facility_id: str, start_year: int | None = None,
     Resolve names with search_hospital and supplied state/county first. Partial
     data failures are reported separately. No risk score or closure prediction.
     """
+    # Reuse existing deterministic tools; do not reimplement calculations in the LLM.
     from app.services.investigation_service import build_hospital_investigation
     return build_hospital_investigation(
         facility_id, analyze_hospital_financials.func, analyze_financial_trend.func,
@@ -498,6 +487,7 @@ def compare_hospital_investigations(
     are calculated only for matching fiscal periods and mean second minus first.
     Missing data must be reported. Do not infer a winner or closure risk ranking.
     """
+    # Align periods in the service before presenting any cross-hospital differences.
     from app.services.comparison_service import compare_hospitals
     return compare_hospitals(
         first_facility_id, second_facility_id, analyze_hospital_financials.func,
@@ -505,12 +495,53 @@ def compare_hospital_investigations(
         year=year, start_year=start_year, end_year=end_year)
 
 
+# Register the agent-facing capabilities; routing policy lives in SYSTEM_PROMPT.
+
+@tool
+def search_tribal_facility_directory(
+    name: str | None = None, state: str | None = None,
+    city: str | None = None, facility_type: str | None = None,
+    limit: int = 20,
+) -> dict:
+    """Search the CMS/IHS tribal-facility historical listing created 2020-01-26.
+
+    Supports name/state/city/type filters, not county. Returns listed types,
+    historical CCNs, source pages and citations; it does not verify current
+    operation or eligibility. Entries include FQHCs and other non-hospitals.
+    Do not use their CCNs in hospital financial/investigation/comparison tools.
+    Historical hospitals require confirmation in current CMS hospital data.
+    A missing match does not establish nonexistence. This is directory lookup,
+    not vector RAG or evidence about financial causes or community needs.
+    """
+    import sqlite3
+    from app.services.tribal_directory_service import search_tribal_facilities
+
+    # A missing local snapshot/index is an unavailable source, not zero matches.
+    try:
+        return search_tribal_facilities(name, state, city, facility_type, limit)
+    except (OSError, ValueError, sqlite3.Error):
+        return {'error': 'The historical tribal directory is unavailable. Do not infer that the institution does not exist.'}
+
+
+@tool
+def resolve_facility(name: str | None = None, state: str | None = None,
+                     county: str | None = None, facility_id: str | None = None) -> dict:
+    """Resolve a facility name with state/county, or a CCN alone.
+
+    Combines historical tribal-directory lookup and current CMS hospital search.
+    Only resolved_hospital yields a current hospital CCN. Clarify ambiguous
+    results; historical types do not establish current status or financial eligibility.
+    """
+    from app.services.facility_resolution_service import resolve_facility_identity
+    return resolve_facility_identity(name, state, county, facility_id)
+
+
 HOSPITAL_AGENT_TOOLS = [
+    search_tribal_facility_directory,
     compare_hospital_investigations,
     investigate_hospital,  # Investigate a hospital with financials, trend, and access in one report.
     analyze_facility_access_by_address,  # Analyze healthcare access at a user-confirmed facility address without a CCN.
-    search_hospital,  # Find CMS hospitals by name.
-    get_hospital_by_ccn,  # Retrieve hospital details by CCN.
+    resolve_facility,  # Resolve names or CCNs with one compact lookup.
     analyze_hospital_financials,  # Calculate financial indicators from CMS reports.
     analyze_financial_trend,  # Analyze financial trends over multiple years.
     analyze_healthcare_access,  # Find same-county alternative hospitals.

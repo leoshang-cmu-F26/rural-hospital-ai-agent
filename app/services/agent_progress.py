@@ -1,13 +1,15 @@
-from app.services.evidence_summary import evidence_summary
 """Request-local, public progress events; never expose model reasoning."""
 from contextvars import ContextVar
 from app.services.chat_context import extract_facility, extract_comparison
 from langchain_core.callbacks import BaseCallbackHandler
+from app.services.evidence_summary import evidence_summary
 
+# One sink per execution context avoids mixing concurrent conversations.
 _sink = ContextVar('agent_progress_sink', default=None)
 
 
 def report_progress(message):
+    """Publish a service activity only when the current request has a progress sink."""
     sink = _sink.get()
     if sink is not None:
         sink({'type': 'progress', 'message': message})
@@ -18,7 +20,10 @@ class ToolProgressHandler(BaseCallbackHandler):
         self.sink = sink
 
     def on_tool_start(self, serialized, input_str, **kwargs):
+        # Publish readable activity names, never model reasoning or raw inputs.
         messages = {
+            'resolve_facility': 'Checking facility identity and current CMS records…',
+            'search_tribal_facility_directory': 'Searching the historical CMS/IHS tribal facility directory…',
             'compare_hospital_investigations': 'Aligning reports and comparing both hospitals…',
             'investigate_hospital': 'Building a full hospital investigation…',
             'search_hospital': 'Searching CMS hospital records…',
@@ -34,12 +39,14 @@ class ToolProgressHandler(BaseCallbackHandler):
             (serialized or {}).get('name'), 'Retrieving evidence…')})
 
     def on_tool_end(self, output, **kwargs):
+        # Tool completion can update evidence cards and the active identity/pair.
         evidence = evidence_summary(output)
         if evidence:
             self.sink({'type': 'evidence', 'sections': evidence})
         pair = extract_comparison(output)
         if pair:
             self.sink({'type': 'comparison_context', 'comparison_facilities': pair})
+        # A recognized empty identity deliberately clears a stale target.
         facility, recognized = extract_facility(output)
         if recognized:
             self.sink({'type': 'context', 'current_facility': facility})

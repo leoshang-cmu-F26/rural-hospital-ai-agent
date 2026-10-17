@@ -6,13 +6,14 @@
 
     <title>Rural Hospital AI Agent</title>
 
-    <link rel="stylesheet" href="./style.css?v=20261016-comparison">
+    <link rel="stylesheet" href="./style.css?v=20261016-tribal-directory">
 </head>
 
 <body>
 
 <div class="app-container">
 
+    <!-- Application identity and supported investigation scope. -->
     <header>
         <h1>Rural Hospital AI Agent</h1>
         <p>
@@ -22,8 +23,10 @@
     </header>
 
     <main>
+        <!-- Successful tool results update this single/pair identity banner. -->
         <div id="current-facility" class="current-facility" hidden aria-live="polite"></div>
 
+        <!-- Answers and temporary progress appear here; state is held in app.js. -->
         <div id="chat-box" class="chat-box">
 
             <div class="message agent-message">
@@ -40,14 +43,17 @@
         </div>
 
 
+        <!-- Examples fill the input; Clear chat resets identity and history. -->
         <div class="examples">
             <button class="example-button" onclick="useExample('Investigate Mile Bluff Medical Center in Juneau County, Wisconsin. Include financials, trends, healthcare access and data gaps.')">Full hospital investigation</button>
             <button class="example-button" onclick="useExample('Find Reedsburg Area Medical Center in Sauk County, WI.')">Find by name &amp; location</button>
             <button class="example-button" onclick="useExample('Analyze its financial distress.')">Financial follow-up</button>
             <button class="example-button" onclick="useExample('Compare Mile Bluff Medical Center in Juneau County, Wisconsin, and Reedsburg Area Medical Center in Sauk County, Wisconsin. Include financial condition and healthcare access.')">Compare two hospitals</button>
+            <button class="example-button" onclick="useExample('Which Wisconsin facilities are listed in the historical CMS/IHS tribal directory? Include facility types, listed CCNs, source date and pages.')">Historical tribal directory</button>
             <button class="example-button clear-button" onclick="clearChat()">Clear chat</button>
         </div>
 
+        <!-- Disable submission while a streamed request is still running. -->
         <div class="input-area">
 
             <textarea
@@ -69,8 +75,9 @@
 
 </div>
 
-<script src="markdown.js?v=20261016-comparison"></script>
-<script src="app.js?v=20261016-comparison"></script>
+<!-- Load the safe renderer before the chat controller. -->
+<script src="markdown.js?v=20261016-tribal-directory"></script>
+<script src="app.js?v=20261016-tribal-directory"></script>
 
 </body>
 </html>

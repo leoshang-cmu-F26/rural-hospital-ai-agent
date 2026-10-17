@@ -1,10 +1,14 @@
-/* Small Markdown renderer: build DOM nodes, never interpolate model HTML. */
+/* Render a limited Markdown subset using DOM nodes; never interpolate model HTML. */
+
+// Inline formatting: copy plain text and explicitly create supported elements.
 function appendInlineMarkdown(parent, text) {
     const pattern = /(\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^\s)]+)\)|\*([^*\n]+)\*)/g;
     let start = 0;
+
     for (const match of text.matchAll(pattern)) {
         parent.appendChild(document.createTextNode(text.slice(start, match.index)));
         let element;
+
         if (match[2]) {
             element = document.createElement('strong');
             element.textContent = match[2];
@@ -12,8 +16,14 @@ function appendInlineMarkdown(parent, text) {
             element = document.createElement('code');
             element.textContent = match[3];
         } else if (match[4]) {
+            // Only web links become clickable; unsupported schemes remain text.
             let url;
-            try { url = new URL(match[5]); } catch { url = null; }
+            try {
+                url = new URL(match[5]);
+            } catch {
+                url = null;
+            }
+
             if (url && ['https:', 'http:'].includes(url.protocol)) {
                 element = document.createElement('a');
                 element.href = url.href;
@@ -27,74 +37,194 @@ function appendInlineMarkdown(parent, text) {
             element = document.createElement('em');
             element.textContent = match[6];
         }
+
         parent.appendChild(element);
         start = match.index + match[0].length;
     }
+
     parent.appendChild(document.createTextNode(text.slice(start)));
 }
 
+// Table parsing: trim optional edge pipes without interpreting cell text as HTML.
+function markdownTableCells(line) {
+    const rawCells = line.trim().replace(/^\||\|$/g, '').split('|');
+    const cells = [];
+    for (const cell of rawCells) {
+        cells.push(cell.trim());
+    }
+    return cells;
+}
+
+function isMarkdownTableSeparator(line) {
+    if (!line) {
+        return false;
+    }
+    for (const cell of markdownTableCells(line)) {
+        if (!/^:?-{3,}:?$/.test(cell)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Paragraph boundaries: stop before a list, heading, code block, quote or table.
+function isMarkdownBlock(line, next) {
+    if (!line.trim()) {
+        return true;
+    }
+    if (/^(#{1,6})\s|^\s*([-*+]\s|\d+\.\s)|^```|^>\s|^---+$/.test(line)) {
+        return true;
+    }
+    return line.includes('|') && isMarkdownTableSeparator(next);
+}
+
+// Table blocks return the first unconsumed line so the main parser stays linear.
+function renderMarkdownTable(lines, start, target) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'table-scroll';
+    const table = document.createElement('table');
+    const head = document.createElement('thead');
+    const row = document.createElement('tr');
+
+    for (const cell of markdownTableCells(lines[start])) {
+        const header = document.createElement('th');
+        header.scope = 'col';
+        appendInlineMarkdown(header, cell);
+        row.appendChild(header);
+    }
+    head.appendChild(row);
+    table.appendChild(head);
+
+    const body = document.createElement('tbody');
+    let index = start + 2;
+    while (index < lines.length && lines[index].trim() && lines[index].includes('|')) {
+        const tableRow = document.createElement('tr');
+        for (const cell of markdownTableCells(lines[index])) {
+            const tableCell = document.createElement('td');
+            appendInlineMarkdown(tableCell, cell);
+            tableRow.appendChild(tableCell);
+        }
+        body.appendChild(tableRow);
+        index++;
+    }
+
+    table.appendChild(body);
+    wrapper.appendChild(table);
+    target.appendChild(wrapper);
+    return index;
+}
+
+// Block rendering: consume one supported block at a time, preserving line order.
 function renderMarkdown(text, target) {
     const lines = String(text).replace(/\r\n/g, '\n').split('\n');
-    const cells = line => line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
-    const isTableSeparator = line => line && cells(line).every(c => /^:?-{3,}:?$/.test(c));
-    const isBlock = (line, next) => !line.trim() || /^(#{1,6})\s|^\s*([-*+]\s|\d+\.\s)|^```|^>\s|^---+$/.test(line) || (line.includes('|') && isTableSeparator(next));
-    for (let i = 0; i < lines.length;) {
-        const line = lines[i];
-        if (!line.trim()) { i++; continue; }
-        if (line.startsWith('```')) {
-            const pre = document.createElement('pre'), code = document.createElement('code');
-            const body = []; i++;
-            while (i < lines.length && !lines[i].startsWith('```')) body.push(lines[i++]);
-            if (i < lines.length) i++;
-            code.textContent = body.join('\n'); pre.appendChild(code); target.appendChild(pre); continue;
+
+    for (let index = 0; index < lines.length;) {
+        const line = lines[index];
+        if (!line.trim()) {
+            index++;
+            continue;
         }
+
+        // 1. Fenced code is literal text, including any markup inside it.
+        if (line.startsWith('```')) {
+            const pre = document.createElement('pre');
+            const code = document.createElement('code');
+            const body = [];
+            index++;
+            while (index < lines.length && !lines[index].startsWith('```')) {
+                body.push(lines[index]);
+                index++;
+            }
+            if (index < lines.length) {
+                index++;
+            }
+            code.textContent = body.join('\n');
+            pre.appendChild(code);
+            target.appendChild(pre);
+            continue;
+        }
+
+        // 2. Headings are offset beneath the page's main application heading.
         const heading = line.match(/^(#{1,6})\s+(.+)$/);
         if (heading) {
-            const h = document.createElement('h' + Math.min(6, heading[1].length + 1));
-            appendInlineMarkdown(h, heading[2]); target.appendChild(h); i++; continue;
+            const element = document.createElement('h' + Math.min(6, heading[1].length + 1));
+            appendInlineMarkdown(element, heading[2]);
+            target.appendChild(element);
+            index++;
+            continue;
         }
-        if (/^---+$/.test(line.trim())) { target.appendChild(document.createElement('hr')); i++; continue; }
-        if (line.includes('|') && isTableSeparator(lines[i + 1])) {
-            const wrapper = document.createElement('div'); wrapper.className = 'table-scroll';
-            const table = document.createElement('table'), head = document.createElement('thead');
-            const row = document.createElement('tr');
-            cells(line).forEach(cell => { const th = document.createElement('th'); th.scope = 'col'; appendInlineMarkdown(th, cell); row.appendChild(th); });
-            head.appendChild(row); table.appendChild(head); i += 2;
-            const body = document.createElement('tbody');
-            while (i < lines.length && lines[i].trim() && lines[i].includes('|')) {
-                const tr = document.createElement('tr');
-                cells(lines[i++]).forEach(cell => { const td = document.createElement('td'); appendInlineMarkdown(td, cell); tr.appendChild(td); });
-                body.appendChild(tr);
-            }
-            table.appendChild(body); wrapper.appendChild(table); target.appendChild(wrapper); continue;
+        if (/^---+$/.test(line.trim())) {
+            target.appendChild(document.createElement('hr'));
+            index++;
+            continue;
         }
+
+        // 3. Tables require a header separator and scroll horizontally on phones.
+        if (line.includes('|') && isMarkdownTableSeparator(lines[index + 1])) {
+            index = renderMarkdownTable(lines, index, target);
+            continue;
+        }
+
+        // 4. Preserve ordered/unordered list type and indented continuation text.
         const list = line.match(/^\s*([-*+]\s+|\d+\.\s+)(.*)$/);
         if (list) {
             const ordered = /^\d/.test(list[1]);
-            const element = document.createElement(ordered ? 'ol' : 'ul');
-            if (ordered) element.start = parseInt(list[1], 10);
-            while (i < lines.length) {
-                const item = lines[i].match(/^\s*([-*+]\s+|\d+\.\s+)(.*)$/);
-                if (!item || /^\d/.test(item[1]) !== ordered) break;
-                const li = document.createElement('li'); appendInlineMarkdown(li, item[2]); i++;
-                while (i < lines.length && /^\s{2,}\S/.test(lines[i]) && !/^\s*([-*+]\s|\d+\.\s)/.test(lines[i])) {
-                    li.appendChild(document.createTextNode(' ')); appendInlineMarkdown(li, lines[i++].trim());
-                }
-                element.appendChild(li);
+            let listElement;
+            if (ordered) {
+                listElement = document.createElement('ol');
+                listElement.start = parseInt(list[1], 10);
+            } else {
+                listElement = document.createElement('ul');
             }
-            target.appendChild(element); continue;
+
+            while (index < lines.length) {
+                const item = lines[index].match(/^\s*([-*+]\s+|\d+\.\s+)(.*)$/);
+                if (!item || /^\d/.test(item[1]) !== ordered) {
+                    break;
+                }
+                const listItem = document.createElement('li');
+                appendInlineMarkdown(listItem, item[2]);
+                index++;
+
+                while (index < lines.length && /^\s{2,}\S/.test(lines[index]) && !/^\s*([-*+]\s|\d+\.\s)/.test(lines[index])) {
+                    listItem.appendChild(document.createTextNode(' '));
+                    appendInlineMarkdown(listItem, lines[index].trim());
+                    index++;
+                }
+                listElement.appendChild(listItem);
+            }
+            target.appendChild(listElement);
+            continue;
         }
+
+        // 5. Block quotes use the same safe inline renderer as ordinary text.
         if (line.startsWith('> ')) {
-            const quote = document.createElement('blockquote'); appendInlineMarkdown(quote, line.slice(2));
-            target.appendChild(quote); i++; continue;
+            const quote = document.createElement('blockquote');
+            appendInlineMarkdown(quote, line.slice(2));
+            target.appendChild(quote);
+            index++;
+            continue;
         }
+
+        // 6. Join paragraph lines, retaining Markdown's explicit hard line breaks.
         const paragraph = document.createElement('p');
-        const body = [line]; i++;
-        while (i < lines.length && !isBlock(lines[i], lines[i + 1])) body.push(lines[i++]);
-        body.forEach((part, index) => {
+        const body = [line];
+        index++;
+        while (index < lines.length && !isMarkdownBlock(lines[index], lines[index + 1])) {
+            body.push(lines[index]);
+            index++;
+        }
+        for (let partIndex = 0; partIndex < body.length; partIndex++) {
+            const part = body[partIndex];
             appendInlineMarkdown(paragraph, part.replace(/\s{2}$/, ''));
-            if (index < body.length - 1) paragraph.appendChild(/\s{2}$/.test(part) ? document.createElement('br') : document.createTextNode(' '));
-        });
+            if (partIndex < body.length - 1) {
+                if (/\s{2}$/.test(part)) {
+                    paragraph.appendChild(document.createElement('br'));
+                } else {
+                    paragraph.appendChild(document.createTextNode(' '));
+                }
+            }
+        }
         target.appendChild(paragraph);
     }
 }

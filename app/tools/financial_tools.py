@@ -1,3 +1,5 @@
+"""Deterministic financial indicators with explicit missing-data handling."""
+
 from app.models.financial import (
     HospitalFinancialRecord,
     FinancialIndicators,
@@ -98,11 +100,11 @@ def calculate_financial_indicators(
     record: HospitalFinancialRecord,
 ) -> FinancialIndicators:
 
-    missing_fields = [
-        field
-        for field in INDICATOR_INPUT_FIELDS
-        if getattr(record, field) is None
-    ]
+    """Calculate each supported indicator and retain its missing-input fields."""
+    missing_fields = []
+    for field in INDICATOR_INPUT_FIELDS:
+        if getattr(record, field) is None:
+            missing_fields.append(field)
 
     return FinancialIndicators(
         facility_id=record.facility_id,

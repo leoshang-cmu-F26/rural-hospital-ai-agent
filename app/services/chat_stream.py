@@ -10,16 +10,22 @@ logger = logging.getLogger(__name__)
 
 
 def stream_agent_events(message, runner, history=None, current_facility=None, comparison_facilities=None):
+    """Bridge a synchronous worker to newline-delimited events with request isolation."""
+    # 1. Keep each chat request in its own queue and disconnect flag.
     events = Queue()
     stopped = Event()
 
+    # Stop buffering events after the client disconnects.
     def emit(event):
         if not stopped.is_set():
             events.put(event)
 
+    # 2. Run blocking model/tool work outside the response iterator.
     def run():
+        # Bind service progress only to this worker and always restore the context.
         token = _sink.set(emit)
         try:
+            # Forward optional context without changing legacy runner call contracts.
             options = {"callbacks": [ToolProgressHandler(emit)]}
             if history is not None:
                 options["history"] = history
@@ -38,9 +44,11 @@ def stream_agent_events(message, runner, history=None, current_facility=None, co
             _sink.reset(token)
             emit(None)
 
+    # 3. Send an initial state immediately, before external requests can block.
     yield json.dumps({'type': 'progress', 'message': 'Understanding your request…'}) + '\n'
     Thread(target=run, daemon=True, name='agent-chat-stream').start()
     try:
+        # 4. Send events in order; heartbeat frames keep an idle connection alive.
         while True:
             try:
                 event = events.get(timeout=10)
@@ -50,4 +58,5 @@ def stream_agent_events(message, runner, history=None, current_facility=None, co
                 break
             yield json.dumps(event, ensure_ascii=False) + '\n'
     finally:
+        # Stop delivery; this does not cancel an external request already running.
         stopped.set()

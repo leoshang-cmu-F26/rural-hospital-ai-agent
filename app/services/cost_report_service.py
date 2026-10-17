@@ -106,11 +106,11 @@ class FinancialHistoryResult:
 
     @property
     def years_with_data(self) -> list[int]:
-        return [
-            record.report_year
-            for record in self.records
-            if record.report_year is not None
-        ]
+        years = []
+        for record in self.records:
+            if record.report_year is not None:
+                years.append(record.report_year)
+        return years
 
 
 # region Dataset discovery
@@ -136,6 +136,8 @@ def discover_cost_report_datasets() -> dict[int, str]:
 
     datasets: dict[int, str] = {}
 
+    # Select only hospital cost-report entries with recognizable years and dataset IDs.
+    # Select only hospital cost-report entries with recognizable years and dataset IDs.
     for entry in response.json().get("dataset", []):
         title_match = COST_REPORT_TITLE_PATTERN.match(
             entry.get("title", "")
@@ -166,6 +168,8 @@ def get_cost_report_datasets(
     """
     global _last_catalog_refresh
 
+    # Serialize catalog refreshes and apply the cooldown before any network request.
+    # Serialize catalog refreshes and apply the cooldown before any network request.
     with _catalog_lock:
         cached = _catalog_cache.get("datasets")
         now = time.monotonic()
@@ -198,6 +202,8 @@ def get_cost_report_datasets(
             )
             discovered = {}
 
+        # Fresh catalog entries override bundled fallbacks for the same year.
+        # Fresh catalog entries override bundled fallbacks for the same year.
         datasets = {**FALLBACK_COST_REPORT_DATASETS, **discovered}
         _catalog_cache["datasets"] = datasets
 
@@ -205,10 +211,12 @@ def get_cost_report_datasets(
 
 
 def get_available_report_years() -> list[int]:
+    """List the dataset years currently known to the CMS catalog."""
     return sorted(get_cost_report_datasets())
 
 
 def get_latest_report_year() -> int:
+    """Return the newest known dataset year, not a hospital-specific filing year."""
     return get_available_report_years()[-1]
 
 # endregion
@@ -313,11 +321,10 @@ def select_primary_row(rows: list[dict]) -> dict | None:
         return None
 
     def score(row: dict) -> tuple[int, str]:
-        completeness = sum(
-            1
-            for column in COMPLETENESS_COLUMNS
-            if str(row.get(column) or "").strip() != ""
-        )
+        completeness = 0
+        for column in COMPLETENESS_COLUMNS:
+            if str(row.get(column) or "").strip() != "":
+                completeness += 1
         return completeness, str(row.get("Fiscal Year End Date") or "")
 
     return max(rows, key=score)
@@ -328,6 +335,7 @@ def select_primary_row(rows: list[dict]) -> dict | None:
 # region Parsing
 
 def to_optional_float(value):
+    """Parse numeric source text while preserving missing values as None."""
     if value is None:
         return None
 
@@ -439,7 +447,9 @@ def get_financial_data_by_hospital(
         row = select_primary_row(
             fetch_cost_report_rows(facility_id, year)
         )
-        return parse_cost_report_row(row, year) if row else None
+        if row:
+            return parse_cost_report_row(row, year)
+        return None
 
     reached_any_dataset = False
     last_error: CostReportUnavailableError | None = None
@@ -521,9 +531,13 @@ def get_financial_history_by_hospital(
     fetched in parallel. Years are classified as having data, having
     no report, or being unavailable (dataset could not be fetched).
     """
+    # 1. Validate the requested interval and distinguish unsupported dataset years.
+    # 1. Validate the requested interval and distinguish unsupported dataset years.
     years = resolve_report_years(start_year, end_year)
     known_years = set(get_available_report_years())
 
+    # 2. Keep each year independent: record, no matching report, or retrieval failure.
+    # 2. Keep each year independent: record, no matching report, or retrieval failure.
     def fetch_year(year: int):
         if year not in known_years:
             available = sorted(known_years)
@@ -546,6 +560,8 @@ def get_financial_history_by_hospital(
 
         return year, parse_cost_report_row(row, year), None
 
+    # 3. Bound concurrency; executor.map preserves the input year order.
+    # 3. Bound concurrency; executor.map preserves the input year order.
     workers = max(1, min(MAX_PARALLEL_YEAR_REQUESTS, len(years)))
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
@@ -557,6 +573,8 @@ def get_financial_history_by_hospital(
         records=[],
     )
 
+    # 4. Keep missing reports separate from unavailable datasets in the final history.
+    # 4. Keep missing reports separate from unavailable datasets in the final history.
     for year, record, reason in outcomes:
         if record is not None:
             result.records.append(record)
@@ -573,6 +591,7 @@ def get_financial_history_by_hospital(
 def validate_financial_record(
     record: HospitalFinancialRecord,
 ) -> dict:
+    """Report source-field validation issues without inventing replacement values."""
     missing_fields = []
 
     if record.net_patient_revenue is None:

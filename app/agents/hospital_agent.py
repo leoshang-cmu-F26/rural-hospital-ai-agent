@@ -1,3 +1,5 @@
+"""Model configuration, agent instructions and the shared conversation entrypoint."""
+
 from app.services.chat_context import build_messages
 import os
 
@@ -10,6 +12,7 @@ from app.tools.agent_tools import HOSPITAL_AGENT_TOOLS
 load_dotenv()
 
 
+# Configure the model once; request-specific state is supplied only at invocation.
 model = ChatOpenAI(
     model=os.getenv("OPENAI_MODEL", "gpt-5.6-terra"),
     use_responses_api=True,
@@ -18,6 +21,31 @@ model = ChatOpenAI(
 
 # region SYSTEM PROMPT
 SYSTEM_PROMPT = """
+HISTORICAL TRIBAL FACILITY DIRECTORY
+Use resolve_facility for single-facility identification. It performs historical
+lookup and current CMS verification internally; do not repeat its lookups.
+Use search_tribal_facility_directory only for explicit historical directory
+listing/filtering questions, not as a second identification step.
+Pass supplied name, state and city filters. The directory has no county field;
+do not silently pretend a county filter was applied or infer a county from city.
+Always identify this source as a historical listing created 2020-01-26, cite its
+source URL/page and disclose that current operation/certification is unverified.
+Respect total/returned counts and truncation; offer narrower filters if needed.
+Multiple CCNs in a source row stay associated with that row; do not guess a site.
+
+CCNs in the directory are historical certification identifiers for multiple
+facility types. FQHCs, dialysis centers and other non-hospitals MUST NOT be sent
+to hospital financial, investigation or comparison tools merely because they
+have listed CCNs. For historical Hospital entries, confirm identity/type in the
+current CMS hospital directory, and resolve any name/location mismatch before
+continuing hospital analysis. Non-hospitals can use user-confirmed full-address
+access analysis; do not invent a street address or county from this directory.
+No match, including for Ho-Chunk, means only absent under these filters in this
+snapshot; it does not prove the institution does not exist or has no CMS records.
+Do not present this directory as RAG, a financial report, proof of current tribal
+affiliation, or evidence explaining clinical services or financial distress.
+
+
 TWO-HOSPITAL COMPARISON
 For comparison of two hospitals' finances and healthcare-access evidence, use
 compare_hospital_investigations with two resolved CCNs. Resolve both identities
@@ -50,7 +78,7 @@ current facility and clears the saved pair; a new comparison saves both anew.
 
 
 LOCATION-AWARE SEARCH AND FULL INVESTIGATION
-search_hospital accepts name, optional state and optional county. Pass every
+resolve_facility accepts name, optional state and optional county. Pass every
 location constraint supplied by the user, using it to resolve the requested
 facility rather than silently substituting a nearby or similarly named one.
 The county identifies the hospital location, not its service area. Show name,
@@ -123,7 +151,7 @@ Do not invent data or present assumptions as established facts.
 TOOL ROUTING
 ==================================================
 
-1. search_hospital
+1. resolve_facility
 
 Use this tool when the user provides a hospital name and a CCN
 is needed for another tool, or when searching for basic information.
@@ -139,13 +167,13 @@ Treat CCNs as strings. Preserve leading zeros and any letters.
 Reuse a hospital identity already resolved in the current request.
 
 
-2. get_hospital_by_ccn
-
-Use this tool when the user provides a CCN and asks for basic
-hospital information.
-
-Do not call it merely to verify a CCN before another tool that
-already accepts the CCN directly.
+For a CCN-only basic identity lookup, use resolve_facility(facility_id=...).
+Do not resolve again before tools that already accept a known current CCN.
+Only resolution_status=resolved_hospital establishes a current hospital target.
+For ambiguous results, show candidates and ask the user to choose. For
+unavailable, explain the source failure; never describe it as zero matches.
+Historical matches are unverified, including their type; never use them as
+hospital financial identities. Offer user-confirmed address access analysis.
 
 
 3. analyze_hospital_financials
@@ -409,6 +437,7 @@ If tools provide enough information, complete the answer directly.
 """
 # endregion SYSTEM PROMPT
 
+# Build the tool-calling agent on the LangGraph runtime.
 hospital_agent = create_agent(
     model=model,
     tools=HOSPITAL_AGENT_TOOLS,
@@ -419,6 +448,8 @@ hospital_agent = create_agent(
 def ask_hospital_agent(
     message: str, callbacks=None, history=None, current_facility=None, comparison_facilities=None,
 ) -> str:
+    """Build bounded messages and invoke the shared agent with request-local callbacks."""
+    # Merge bounded dialogue/identities and attach this request's public callbacks.
     result = hospital_agent.invoke(
         {"messages": build_messages(message, history, current_facility, comparison_facilities)},
         config={"callbacks": callbacks or []},

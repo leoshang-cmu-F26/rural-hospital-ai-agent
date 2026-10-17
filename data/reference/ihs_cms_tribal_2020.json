@@ -1,0 +1,1832 @@
+{
+  "schema_version": 1,
+  "source_title": "IHS-CMS All Tribal Facilities Listing",
+  "source_url": "https://www.cms.gov/files/document/indian-healt-service-cms-all-final.pdf",
+  "source_created_date": "2020-01-26",
+  "source_sha256": "36c8ef0b67c893fce167e8f7109a2ffba92822cf85e9da6db5b7bb923bc949a7",
+  "record_count": 163,
+  "ccn_count": 171,
+  "record_counts_by_type": {
+    "Ambulatory Surgical Center": 1,
+    "End Stage Renal Disease Facility": 5,
+    "FQHC": 100,
+    "Home Health Agency": 2,
+    "Hospital": 42,
+    "Nursing Facility": 1,
+    "Rural Health Clinic": 7,
+    "SNF/NF (Dually Certified)": 5
+  },
+  "ccn_counts_by_type": {
+    "Ambulatory Surgical Center": 1,
+    "End Stage Renal Disease Facility": 5,
+    "FQHC": 108,
+    "Home Health Agency": 2,
+    "Hospital": 42,
+    "Nursing Facility": 1,
+    "Rural Health Clinic": 7,
+    "SNF/NF (Dually Certified)": 5
+  },
+  "records": [
+    {
+      "record_id": "cms-tribal-2020-001",
+      "facility_name": "POLSON HEALTH OUTPATIENT CENTER",
+      "facility_type": "Ambulatory Surgical Center",
+      "ccns": [
+        "27C0001026"
+      ],
+      "city": "Polson",
+      "state": "MT",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-002",
+      "facility_name": "TOIYABE INDIAN HEALTH PROJECT",
+      "facility_type": "End Stage Renal Disease Facility",
+      "ccns": [
+        "052836"
+      ],
+      "city": "Bishop",
+      "state": "CA",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-003",
+      "facility_name": "WIND RIVER DIALYSIS CENTER",
+      "facility_type": "End Stage Renal Disease Facility",
+      "ccns": [
+        "532503"
+      ],
+      "city": "Fort Washakie",
+      "state": "WY",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-004",
+      "facility_name": "GILA RIVER DIALYSIS WEST",
+      "facility_type": "End Stage Renal Disease Facility",
+      "ccns": [
+        "033503"
+      ],
+      "city": "Laveen",
+      "state": "AZ",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-005",
+      "facility_name": "CARL T CURTIS HEALTH EDUCATION CENTER",
+      "facility_type": "End Stage Renal Disease Facility",
+      "ccns": [
+        "282525"
+      ],
+      "city": "Macy",
+      "state": "NE",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-006",
+      "facility_name": "RENAL CARE GROUP - AK-CHIN",
+      "facility_type": "End Stage Renal Disease Facility",
+      "ccns": [
+        "032581"
+      ],
+      "city": "Maricopa",
+      "state": "AZ",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-007",
+      "facility_name": "AAZHOOMOG (LAKE LENA) CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "241859"
+      ],
+      "city": "Sandstone",
+      "state": "MN",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-008",
+      "facility_name": "ALAMO NAVAJO HEALTH CTR",
+      "facility_type": "FQHC",
+      "ccns": [
+        "321860"
+      ],
+      "city": "Alamo",
+      "state": "NM",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-009",
+      "facility_name": "ANAV TRIBAL HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "551160"
+      ],
+      "city": "Fort Jones",
+      "state": "CA",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-010",
+      "facility_name": "ANZA COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "751809"
+      ],
+      "city": "Anza",
+      "state": "CA",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-011",
+      "facility_name": "BARSTOW COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "921144"
+      ],
+      "city": "Barstow",
+      "state": "CA",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-012",
+      "facility_name": "BENEWAH MEDICAL CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "131814"
+      ],
+      "city": "Plummer",
+      "state": "ID",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-013",
+      "facility_name": "BLANDING FAMILY PRACTICE COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "461833",
+        "461861"
+      ],
+      "city": "Blanding",
+      "state": "UT",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-014",
+      "facility_name": "CANONCITO BAND OF NAVAJOS HEALTH CENTER, INC.",
+      "facility_type": "FQHC",
+      "ccns": [
+        "321964"
+      ],
+      "city": "Canoncito",
+      "state": "NM",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-015",
+      "facility_name": "CATTARAUGUS INDIAN RESERVATION HEALTH",
+      "facility_type": "FQHC",
+      "ccns": [
+        "331875"
+      ],
+      "city": "Irving",
+      "state": "NY",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-016",
+      "facility_name": "CEDAR COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "461849"
+      ],
+      "city": "Cedar City",
+      "state": "UT",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-017",
+      "facility_name": "CENTRAL VALLEY HEALTHCARE",
+      "facility_type": "FQHC",
+      "ccns": [
+        "921916"
+      ],
+      "city": "Shasta Lake",
+      "state": "CA",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-018",
+      "facility_name": "CHAPA-DE INDIAN HEALTH PROGRAM, INC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051922"
+      ],
+      "city": "Auburn",
+      "state": "CA",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-019",
+      "facility_name": "CHEROKEE WOMENS WELLNESS CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "341900"
+      ],
+      "city": "Cherokee",
+      "state": "NC",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-020",
+      "facility_name": "CITIZEN POTAWATOMI NATION HLTH CL",
+      "facility_type": "FQHC",
+      "ccns": [
+        "371825"
+      ],
+      "city": "Shawnee",
+      "state": "OK",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-021",
+      "facility_name": "CITIZEN POTAWATOMI NATION WEST CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "371877"
+      ],
+      "city": "Shawnee",
+      "state": "OK",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-022",
+      "facility_name": "CNCHC/SAN POIL VALLEY COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "501903"
+      ],
+      "city": "Keller",
+      "state": "WA",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-023",
+      "facility_name": "COLUSA INDIAN HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "551948"
+      ],
+      "city": "Colusa",
+      "state": "CA",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-024",
+      "facility_name": "CONEHATTA RURAL HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "251843"
+      ],
+      "city": "Conehatta",
+      "state": "MS",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-025",
+      "facility_name": "CONSOLIDATED TRIBAL HEALTH",
+      "facility_type": "FQHC",
+      "ccns": [
+        "751870"
+      ],
+      "city": "Redwood Valley",
+      "state": "CA",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-026",
+      "facility_name": "DAHL MEMORIAL CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "021836"
+      ],
+      "city": "Skagway",
+      "state": "AK",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-027",
+      "facility_name": "EAST LAKE CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "241858"
+      ],
+      "city": "Mcgregor",
+      "state": "MN",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-028",
+      "facility_name": "FALLON PAIUTE-SHOSHONE HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "291816"
+      ],
+      "city": "Carroll Station",
+      "state": "NV",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-029",
+      "facility_name": "FLATHEAD COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "271838"
+      ],
+      "city": "Kalispell",
+      "state": "MT",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-030",
+      "facility_name": "FORT THOMPSON COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "431853"
+      ],
+      "city": "Fort Thompson",
+      "state": "SD",
+      "source_page": 1
+    },
+    {
+      "record_id": "cms-tribal-2020-031",
+      "facility_name": "FORTUNA COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "751183"
+      ],
+      "city": "Fortuna",
+      "state": "CA",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-032",
+      "facility_name": "FRED LEROY HEALTH & WELLNESS",
+      "facility_type": "FQHC",
+      "ccns": [
+        "281846"
+      ],
+      "city": "Omaha",
+      "state": "NE",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-033",
+      "facility_name": "GRAND PORTAGE HEALTH SERVICES",
+      "facility_type": "FQHC",
+      "ccns": [
+        "241808"
+      ],
+      "city": "Grand Portage",
+      "state": "MN",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-034",
+      "facility_name": "GREENVILLE RANCHERIA TRIBAL HEALTH",
+      "facility_type": "FQHC",
+      "ccns": [
+        "551823"
+      ],
+      "city": "Red Bluff",
+      "state": "CA",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-035",
+      "facility_name": "HESSEL COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "231923"
+      ],
+      "city": "Hessel",
+      "state": "MI",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-036",
+      "facility_name": "HOWONQUET CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "751951"
+      ],
+      "city": "Smith River",
+      "state": "CA",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-037",
+      "facility_name": "IMMOKALEE FAMILY CARE CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "101822"
+      ],
+      "city": "Immokalee",
+      "state": "FL",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-038",
+      "facility_name": "INDIAN HEALTH COUNCIL, INC.",
+      "facility_type": "FQHC",
+      "ccns": [
+        "551872"
+      ],
+      "city": "Valley Center",
+      "state": "CA",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-039",
+      "facility_name": "JAMESTOWN FAMILY HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "501872"
+      ],
+      "city": "Sequim",
+      "state": "WA",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-040",
+      "facility_name": "JEMEZ FQHC CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "321910"
+      ],
+      "city": "Jemez Pueblo",
+      "state": "NM",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-041",
+      "facility_name": "KANOSH COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "461851"
+      ],
+      "city": "Kanosh",
+      "state": "UT",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-042",
+      "facility_name": "KEWEENAW BAY INDIAN COMMUNITY",
+      "facility_type": "FQHC",
+      "ccns": [
+        "231845"
+      ],
+      "city": "Baraga",
+      "state": "MI",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-043",
+      "facility_name": "KICKAPOO INDIAN OUTREACH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "451927"
+      ],
+      "city": "Eagle Pass",
+      "state": "TX",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-044",
+      "facility_name": "KICKAPOO TRADITIONAL TRIBE OF TEXAS",
+      "facility_type": "FQHC",
+      "ccns": [
+        "451026"
+      ],
+      "city": "Eagle Pass",
+      "state": "TX",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-045",
+      "facility_name": "KLAMATH OPEN DOOR CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "381845"
+      ],
+      "city": "Klamath Falls",
+      "state": "OR",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-046",
+      "facility_name": "KLAMATH TRIBAL HEALTH & FAMILY SERVICE",
+      "facility_type": "FQHC",
+      "ccns": [
+        "381849"
+      ],
+      "city": "Chiloquin",
+      "state": "OR",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-047",
+      "facility_name": "KOOSHAREM COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "461850"
+      ],
+      "city": "Richfield",
+      "state": "UT",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-048",
+      "facility_name": "LAKE COUNTY TRIBAL HEALTH CONSORTIUM",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051946",
+        "921024"
+      ],
+      "city": "Lakeport",
+      "state": "CA",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-049",
+      "facility_name": "LAMBERT TRIBAL HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "231841"
+      ],
+      "city": "Saint Ignace",
+      "state": "MI",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-050",
+      "facility_name": "LITTLE TRAVERSE BAY BANDS ODAWA INDIANS",
+      "facility_type": "FQHC",
+      "ccns": [
+        "231872"
+      ],
+      "city": "Petoskey",
+      "state": "MI",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-051",
+      "facility_name": "LOWER ELWHA HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "501835"
+      ],
+      "city": "Port Angeles",
+      "state": "WA",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-052",
+      "facility_name": "MACT MEDICAL CLINIC-SAN ANDREAS",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051153"
+      ],
+      "city": "San Andreas",
+      "state": "CA",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-053",
+      "facility_name": "MANISTIQUE TRIBAL HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "231842"
+      ],
+      "city": "Manistique",
+      "state": "MI",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-054",
+      "facility_name": "MATHIESEN MEMORIAL HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "551130"
+      ],
+      "city": "Jamestown",
+      "state": "CA",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-055",
+      "facility_name": "MENOMINEE TRIBAL CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "521812"
+      ],
+      "city": "Keshena",
+      "state": "WI",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-056",
+      "facility_name": "MONTEZUMA CREEK COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "461818"
+      ],
+      "city": "Montezuma Creek",
+      "state": "UT",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-057",
+      "facility_name": "MORONGO INDIAN HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051909"
+      ],
+      "city": "Banning",
+      "state": "CA",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-058",
+      "facility_name": "MUNISING TRIBAL HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "231843"
+      ],
+      "city": "Munising",
+      "state": "MI",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-059",
+      "facility_name": "NARRAGANSETT INDIAN HEALTH PROGRAM",
+      "facility_type": "FQHC",
+      "ccns": [
+        "411809"
+      ],
+      "city": "Charlestown",
+      "state": "RI",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-060",
+      "facility_name": "NE-IA SHING CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "241819"
+      ],
+      "city": "Onamia",
+      "state": "MN",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-061",
+      "facility_name": "NEWBERRY COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "231922"
+      ],
+      "city": "Newberry",
+      "state": "MI",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-062",
+      "facility_name": "NORTH STAR HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "021802"
+      ],
+      "city": "Seward",
+      "state": "AK",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-063",
+      "facility_name": "NORTHEASTERN TRIBAL HEALTH SYSTEM",
+      "facility_type": "FQHC",
+      "ccns": [
+        "371910"
+      ],
+      "city": "Miami",
+      "state": "OK",
+      "source_page": 2
+    },
+    {
+      "record_id": "cms-tribal-2020-064",
+      "facility_name": "NORTHERN CHEYENNE TRIBAL BOARD OF HEALTH",
+      "facility_type": "FQHC",
+      "ccns": [
+        "271873"
+      ],
+      "city": "LameDeer",
+      "state": "MT",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-065",
+      "facility_name": "NORTHERN VALLEY INDIAN HEALTH, INC.",
+      "facility_type": "FQHC",
+      "ccns": [
+        "551820",
+        "921065"
+      ],
+      "city": "Chico",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-066",
+      "facility_name": "PECHANGA INDIAN HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051911"
+      ],
+      "city": "Temecula",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-067",
+      "facility_name": "PENOBSCOT NATION HEALTH DEPARTMENT",
+      "facility_type": "FQHC",
+      "ccns": [
+        "201818"
+      ],
+      "city": "Old Town",
+      "state": "ME",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-068",
+      "facility_name": "PETER CHRISTENSEN HEALTH CARE",
+      "facility_type": "FQHC",
+      "ccns": [
+        "521814"
+      ],
+      "city": "Lac Du Flambeau",
+      "state": "WI",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-069",
+      "facility_name": "PLEASANT POINT HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "201820"
+      ],
+      "city": "Perry",
+      "state": "ME",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-070",
+      "facility_name": "POARCH CREEK INDIANS HEALTH DEPARTMENT",
+      "facility_type": "FQHC",
+      "ccns": [
+        "011020"
+      ],
+      "city": "Atmore",
+      "state": "AL",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-071",
+      "facility_name": "PONCA HILLS HEALTH & WELLNESS",
+      "facility_type": "FQHC",
+      "ccns": [
+        "281851"
+      ],
+      "city": "Norfolk",
+      "state": "NE",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-072",
+      "facility_name": "PORT GAMBLE S'KLALLAM HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "501839"
+      ],
+      "city": "Kingston",
+      "state": "WA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-073",
+      "facility_name": "PYRAMID LAKE TRIBAL HEALTH DEPT",
+      "facility_type": "FQHC",
+      "ccns": [
+        "291811"
+      ],
+      "city": "Nixon",
+      "state": "NV",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-074",
+      "facility_name": "REDBIRD SMITH HEALTH CTR",
+      "facility_type": "FQHC",
+      "ccns": [
+        "371814"
+      ],
+      "city": "Sallisaw",
+      "state": "OK",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-075",
+      "facility_name": "REDDING RANCHERIA INDIAN HEALTH",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051901"
+      ],
+      "city": "Redding",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-076",
+      "facility_name": "REDDING RANCHERIA TRINITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "921010"
+      ],
+      "city": "Weaverville",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-077",
+      "facility_name": "ROCKY BOY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "271808"
+      ],
+      "city": "Box Elder",
+      "state": "MT",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-078",
+      "facility_name": "ROLLING HILLS CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "921126"
+      ],
+      "city": "Corning",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-079",
+      "facility_name": "ROLLING HILLS CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "551068"
+      ],
+      "city": "Corning",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-080",
+      "facility_name": "SACRED CIRCLE HEALTH CARE",
+      "facility_type": "FQHC",
+      "ccns": [
+        "461840"
+      ],
+      "city": "Salt Lake City",
+      "state": "UT",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-081",
+      "facility_name": "SAM HIDER JAY COMMUNITY CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "371813"
+      ],
+      "city": "Jay",
+      "state": "OK",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-082",
+      "facility_name": "SAN MANUEL INDIAN HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051914"
+      ],
+      "city": "Grand Terrace",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-083",
+      "facility_name": "SANTA YNEZ TRIBAL HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051903"
+      ],
+      "city": "Santa Ynez",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-084",
+      "facility_name": "SAULT STE MARIE TRIBE OF CHIPPEWA IN",
+      "facility_type": "FQHC",
+      "ccns": [
+        "231838"
+      ],
+      "city": "Sault Sainte Marie",
+      "state": "MI",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-085",
+      "facility_name": "SEARHC AICS BEHAVIOR HEALTH",
+      "facility_type": "FQHC",
+      "ccns": [
+        "021842"
+      ],
+      "city": "Wrangell",
+      "state": "AK",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-086",
+      "facility_name": "SHIUWITS COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "461848"
+      ],
+      "city": "Ivins",
+      "state": "UT",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-087",
+      "facility_name": "SHOALWATER BAY TRIBAL CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "501890"
+      ],
+      "city": "North Cove",
+      "state": "WA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-088",
+      "facility_name": "SOBOBA INDIAN HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051915"
+      ],
+      "city": "San Jacinto",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-089",
+      "facility_name": "SONOMA COUNTY INDIAN HEALTH PROJECT(SCIHP)",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051867"
+      ],
+      "city": "Santa Rosa",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-090",
+      "facility_name": "SOUTHERN INDIAN HEALTH COUNCIL INC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051906"
+      ],
+      "city": "Alpine",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-091",
+      "facility_name": "SOUTHERN UTE INDIAN TRIBE",
+      "facility_type": "FQHC",
+      "ccns": [
+        "061963"
+      ],
+      "city": "Ignacio",
+      "state": "CO",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-092",
+      "facility_name": "ST REGIS MOHAWK HEALTH SYSTEMS",
+      "facility_type": "FQHC",
+      "ccns": [
+        "331873"
+      ],
+      "city": "Hogansburg",
+      "state": "NY",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-093",
+      "facility_name": "STIGLER HEALTH AND WELLNESS CENTER, INC.",
+      "facility_type": "FQHC",
+      "ccns": [
+        "371872",
+        "371896"
+      ],
+      "city": "Checotah",
+      "state": "OK",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-094",
+      "facility_name": "TACHI MEDICAL CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "551840"
+      ],
+      "city": "Lemoore",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-095",
+      "facility_name": "TAHLEQUAH HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "371867"
+      ],
+      "city": "Tahlequah",
+      "state": "OK",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-096",
+      "facility_name": "TOIYABE INDIAN HEALTH PROJECT",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051868"
+      ],
+      "city": "Bishop",
+      "state": "CA",
+      "source_page": 3
+    },
+    {
+      "record_id": "cms-tribal-2020-097",
+      "facility_name": "TORRES MARTINEZ INDIAN HEALTH",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051912"
+      ],
+      "city": "Thermal",
+      "state": "CA",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-098",
+      "facility_name": "TOTEM LODGE",
+      "facility_type": "FQHC",
+      "ccns": [
+        "381921"
+      ],
+      "city": "Portland",
+      "state": "OR",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-099",
+      "facility_name": "TRAVERSE HEALTH CLINIC AND COALITION",
+      "facility_type": "FQHC",
+      "ccns": [
+        "231097"
+      ],
+      "city": "Traverse City",
+      "state": "MI",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-100",
+      "facility_name": "TULE RIVER INDIAN HEALTH CENTER, INC.",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051092"
+      ],
+      "city": "Porterville",
+      "state": "CA",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-101",
+      "facility_name": "TUOLUMNE ME-WUK INDIAN HEALTH CENTER, INC.",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051012"
+      ],
+      "city": "Tuolumne",
+      "state": "CA",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-102",
+      "facility_name": "UNITED INDIAN HEALTH SERVICES, INC.",
+      "facility_type": "FQHC",
+      "ccns": [
+        "051165",
+        "051163",
+        "051164",
+        "051167",
+        "051166"
+      ],
+      "city": "Multiple Locations",
+      "state": "CA",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-103",
+      "facility_name": "WAH-ZHA-ZHI HEALTH CLINIC",
+      "facility_type": "FQHC",
+      "ccns": [
+        "371917"
+      ],
+      "city": "Pawhuska",
+      "state": "OK",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-104",
+      "facility_name": "WASHOE TRIBE HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "291828"
+      ],
+      "city": "Gardnerville",
+      "state": "NV",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-105",
+      "facility_name": "YAKUTAT COMMUNITY HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "021838"
+      ],
+      "city": "Yakutat",
+      "state": "AK",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-106",
+      "facility_name": "YUKON FLATS HEALTH CENTER",
+      "facility_type": "FQHC",
+      "ccns": [
+        "021805"
+      ],
+      "city": "Ft Yukon",
+      "state": "AK",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-107",
+      "facility_name": "ALASKAN HOME HEALTH, INC",
+      "facility_type": "Home Health Agency",
+      "ccns": [
+        "027034"
+      ],
+      "city": "Anchorage",
+      "state": "AK",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-108",
+      "facility_name": "WHITE EARTH HOME HEALTH",
+      "facility_type": "Home Health Agency",
+      "ccns": [
+        "247096"
+      ],
+      "city": "White Earth",
+      "state": "MN",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-109",
+      "facility_name": "CHICKASAW NATION MEDICAL CENTER",
+      "facility_type": "Hospital",
+      "ccns": [
+        "370180"
+      ],
+      "city": "Ada",
+      "state": "OK",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-110",
+      "facility_name": "ALASKA NATIVE MEDICAL CENTER",
+      "facility_type": "Hospital",
+      "ccns": [
+        "020026"
+      ],
+      "city": "Anchorage",
+      "state": "AK",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-111",
+      "facility_name": "SAMUEL SIMMONDS MEMORIAL HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "021312"
+      ],
+      "city": "Barrow",
+      "state": "AK",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-112",
+      "facility_name": "PHS INDIAN HOSP AT BELCOURT-QUENTIN N BURDICK",
+      "facility_type": "Hospital",
+      "ccns": [
+        "350063"
+      ],
+      "city": "Belcourt",
+      "state": "ND",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-113",
+      "facility_name": "YUKON KUSKOKWIM DELTA REG HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "020018"
+      ],
+      "city": "Bethel",
+      "state": "AK",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-114",
+      "facility_name": "PHS INDIAN HOSPITAL AT BROWNING-BLACKFEET",
+      "facility_type": "Hospital",
+      "ccns": [
+        "270074"
+      ],
+      "city": "Browning",
+      "state": "MT",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-115",
+      "facility_name": "CASS LAKE INDIAN HEALTH SERVICES HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "241358"
+      ],
+      "city": "Cass Lake",
+      "state": "MN",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-116",
+      "facility_name": "CHEROKEE INDIAN HOSPITAL AUTHORITY",
+      "facility_type": "Hospital",
+      "ccns": [
+        "340156"
+      ],
+      "city": "Cherokee",
+      "state": "NC",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-117",
+      "facility_name": "CHINLE COMPREHENSIVE HEALTH CARE FACILITY",
+      "facility_type": "Hospital",
+      "ccns": [
+        "030084"
+      ],
+      "city": "Chinle",
+      "state": "AZ",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-118",
+      "facility_name": "CLAREMORE INDIAN HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "370173"
+      ],
+      "city": "Claremore",
+      "state": "OK",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-119",
+      "facility_name": "PHS INDIAN HOSPITAL CROW / NORTHERN CHEYENNE",
+      "facility_type": "Hospital",
+      "ccns": [
+        "271339"
+      ],
+      "city": "Crow Agency",
+      "state": "MT",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-120",
+      "facility_name": "CROWNPOINT HEALTHCARE FACILITY",
+      "facility_type": "Hospital",
+      "ccns": [
+        "320062"
+      ],
+      "city": "Crownpoint",
+      "state": "NM",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-121",
+      "facility_name": "KANAKANAK HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "021309"
+      ],
+      "city": "Dillingham",
+      "state": "AK",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-122",
+      "facility_name": "PHS INDIAN HOSPITAL AT EAGLE BUTTE",
+      "facility_type": "Hospital",
+      "ccns": [
+        "430083"
+      ],
+      "city": "Eagle Butte",
+      "state": "SD",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-123",
+      "facility_name": "FORT DEFIANCE INDIAN HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "030071"
+      ],
+      "city": "Fort Defiance",
+      "state": "AZ",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-124",
+      "facility_name": "STANDING ROCK INDIAN HEALTH SERVICE HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "350064"
+      ],
+      "city": "Fort Yates",
+      "state": "ND",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-125",
+      "facility_name": "GALLUP INDIAN MEDICAL CENTER",
+      "facility_type": "Hospital",
+      "ccns": [
+        "320061"
+      ],
+      "city": "Gallup",
+      "state": "NM",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-126",
+      "facility_name": "SAGE MEMORIAL HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "031309"
+      ],
+      "city": "Ganado",
+      "state": "AZ",
+      "source_page": 4
+    },
+    {
+      "record_id": "cms-tribal-2020-127",
+      "facility_name": "PHS INDIAN HOSPITAL -FT BELKNAP AT HARLEM",
+      "facility_type": "Hospital",
+      "ccns": [
+        "271315"
+      ],
+      "city": "Harlem",
+      "state": "MT",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-128",
+      "facility_name": "MANIILAQ HEALTH CENTER",
+      "facility_type": "Hospital",
+      "ccns": [
+        "021310"
+      ],
+      "city": "Kotzebue",
+      "state": "AK",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-129",
+      "facility_name": "LAWTON INDIAN HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "370170"
+      ],
+      "city": "Lawton",
+      "state": "OK",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-130",
+      "facility_name": "MESCALERO PHS INDIAN HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "320058"
+      ],
+      "city": "Mescalero",
+      "state": "NM",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-131",
+      "facility_name": "NORTON SOUND REGIONAL HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "021308"
+      ],
+      "city": "Nome",
+      "state": "AK",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-132",
+      "facility_name": "CREEK NATION COMMUNITY HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "371333"
+      ],
+      "city": "Okemah",
+      "state": "OK",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-133",
+      "facility_name": "PARKER INDIAN HEALTH CENTER",
+      "facility_type": "Hospital",
+      "ccns": [
+        "031307"
+      ],
+      "city": "Parker",
+      "state": "AZ",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-134",
+      "facility_name": "SAN CARLOS APACHE HEALTHCARE",
+      "facility_type": "Hospital",
+      "ccns": [
+        "030077"
+      ],
+      "city": "Peridot",
+      "state": "AZ",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-135",
+      "facility_name": "CHOCTAW HEALTH CENTER",
+      "facility_type": "Hospital",
+      "ccns": [
+        "250127"
+      ],
+      "city": "Philadelphia",
+      "state": "MS",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-136",
+      "facility_name": "PHOENIX INDIAN MEDICAL CENTER",
+      "facility_type": "Hospital",
+      "ccns": [
+        "030078"
+      ],
+      "city": "Phoenix",
+      "state": "AZ",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-137",
+      "facility_name": "PINE RIDGE IHS HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "430098"
+      ],
+      "city": "Pine Ridge",
+      "state": "SD",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-138",
+      "facility_name": "HOPI HEALTH CARE CENTER",
+      "facility_type": "Hospital",
+      "ccns": [
+        "031305"
+      ],
+      "city": "Polacca",
+      "state": "AZ",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-139",
+      "facility_name": "MONUMENT HEALTH RAPID CITY HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "430077"
+      ],
+      "city": "Rapid City",
+      "state": "SD",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-140",
+      "facility_name": "RED LAKE HOSPITAL A",
+      "facility_type": "Hospital",
+      "ccns": [
+        "240206"
+      ],
+      "city": "Redlake",
+      "state": "MN",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-141",
+      "facility_name": "PHS INDIAN HOSPITAL AT ROSEBUD",
+      "facility_type": "Hospital",
+      "ccns": [
+        "430084"
+      ],
+      "city": "Rosebud",
+      "state": "SD",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-142",
+      "facility_name": "HUHU KAM MEMORIAL HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "031308"
+      ],
+      "city": "Sacaton",
+      "state": "AZ",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-143",
+      "facility_name": "SELLS HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "030074"
+      ],
+      "city": "Sells",
+      "state": "AZ",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-144",
+      "facility_name": "NORTHERN NAVAJO MEDICAL CENTER",
+      "facility_type": "Hospital",
+      "ccns": [
+        "320059"
+      ],
+      "city": "Shiprock",
+      "state": "NM",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-145",
+      "facility_name": "MT EDGECUMBE HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "021314"
+      ],
+      "city": "Sitka",
+      "state": "AK",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-146",
+      "facility_name": "WW HASTINGS INDIAN HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "370171"
+      ],
+      "city": "Tahlequah",
+      "state": "OK",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-147",
+      "facility_name": "CHOCTAW NATION HEALTH SERVICES AUTHORITY",
+      "facility_type": "Hospital",
+      "ccns": [
+        "370172"
+      ],
+      "city": "Talihina",
+      "state": "OK",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-148",
+      "facility_name": "TUBA CITY REGIONAL HEALTH CARE CORPORATION",
+      "facility_type": "Hospital",
+      "ccns": [
+        "030073"
+      ],
+      "city": "Tuba City",
+      "state": "AZ",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-149",
+      "facility_name": "WHITERIVER PHS INDIAN HOSPITAL",
+      "facility_type": "Hospital",
+      "ccns": [
+        "030113"
+      ],
+      "city": "Whiteriver",
+      "state": "AZ",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-150",
+      "facility_name": "ZUNI COMPREHENSIVE COMMUNITY HEALTH CENTER",
+      "facility_type": "Hospital",
+      "ccns": [
+        "320060"
+      ],
+      "city": "Zuni",
+      "state": "NM",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-151",
+      "facility_name": "CARL T CURTIS HEALTH EDUCATION CENTER NURSING HOME",
+      "facility_type": "Nursing Facility",
+      "ccns": [
+        "28A065"
+      ],
+      "city": "Macy",
+      "state": "NE",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-152",
+      "facility_name": "BATTLE MOUNTAIN CLINIC",
+      "facility_type": "Rural Health Clinic",
+      "ccns": [
+        "293984"
+      ],
+      "city": "Battle Mountain",
+      "state": "NV",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-153",
+      "facility_name": "PIT RIVER HEALTH SERVICE",
+      "facility_type": "Rural Health Clinic",
+      "ccns": [
+        "053845"
+      ],
+      "city": "Burney",
+      "state": "CA",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-154",
+      "facility_name": "CARNEGIE MEDICAL CLINIC",
+      "facility_type": "Rural Health Clinic",
+      "ccns": [
+        "378542"
+      ],
+      "city": "Carnegie",
+      "state": "OK",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-155",
+      "facility_name": "HOT SPRINGS MEDICAL CLINIC",
+      "facility_type": "Rural Health Clinic",
+      "ccns": [
+        "273980"
+      ],
+      "city": "Hot Springs",
+      "state": "MT",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-156",
+      "facility_name": "MONUMENT VALLEY HEALTH CLINIC",
+      "facility_type": "Rural Health Clinic",
+      "ccns": [
+        "463818"
+      ],
+      "city": "Monument Valley",
+      "state": "UT",
+      "source_page": 5
+    },
+    {
+      "record_id": "cms-tribal-2020-157",
+      "facility_name": "THE PAWNEE CLINIC",
+      "facility_type": "Rural Health Clinic",
+      "ccns": [
+        "373471"
+      ],
+      "city": "Pawnee",
+      "state": "OK",
+      "source_page": 6
+    },
+    {
+      "record_id": "cms-tribal-2020-158",
+      "facility_name": "TULALIP HEALTH CLINIC",
+      "facility_type": "Rural Health Clinic",
+      "ccns": [
+        "503809"
+      ],
+      "city": "Tulalip",
+      "state": "WA",
+      "source_page": 6
+    },
+    {
+      "record_id": "cms-tribal-2020-159",
+      "facility_name": "BLACKFEET CARE CENTER",
+      "facility_type": "SNF/NF (Dually Certified)",
+      "ccns": [
+        "275133"
+      ],
+      "city": "Browning",
+      "state": "MT",
+      "source_page": 6
+    },
+    {
+      "record_id": "cms-tribal-2020-160",
+      "facility_name": "LOCKPORT REHAB & HEALTH CARE CENTER",
+      "facility_type": "SNF/NF (Dually Certified)",
+      "ccns": [
+        "335573"
+      ],
+      "city": "Lockport",
+      "state": "NY",
+      "source_page": 6
+    },
+    {
+      "record_id": "cms-tribal-2020-161",
+      "facility_name": "OKEMAH CARE CENTER",
+      "facility_type": "SNF/NF (Dually Certified)",
+      "ccns": [
+        "375420"
+      ],
+      "city": "Okemah",
+      "state": "OK",
+      "source_page": 6
+    },
+    {
+      "record_id": "cms-tribal-2020-162",
+      "facility_name": "POLSON HEALTH & REHABILITATION CENTER",
+      "facility_type": "SNF/NF (Dually Certified)",
+      "ccns": [
+        "275049"
+      ],
+      "city": "Polson",
+      "state": "MT",
+      "source_page": 6
+    },
+    {
+      "record_id": "cms-tribal-2020-163",
+      "facility_name": "RED BLUFF HEALTH CARE CENTER",
+      "facility_type": "SNF/NF (Dually Certified)",
+      "ccns": [
+        "056274"
+      ],
+      "city": "Red Bluff",
+      "state": "CA",
+      "source_page": 6
+    }
+  ]
+}

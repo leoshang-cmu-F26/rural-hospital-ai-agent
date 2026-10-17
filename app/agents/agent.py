@@ -1,8 +1,12 @@
+"""Validated chat request and response models; runtime conversation state is bounded."""
+
 from pydantic import BaseModel, Field
 from app.services.chat_context import HistoryMessage, CurrentFacility, MAX_HISTORY_MESSAGES
 
 
 class AgentRequest(BaseModel):
+    """One user question plus bounded client-owned conversation context."""
+
     message: str
     history: list[HistoryMessage] = Field(default_factory=list, max_length=MAX_HISTORY_MESSAGES)
     current_facility: CurrentFacility | None = None
@@ -10,4 +14,6 @@ class AgentRequest(BaseModel):
 
 
 class AgentResponse(BaseModel):
+    """Final answer returned by the non-streaming chat endpoint."""
+
     response: str

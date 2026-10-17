@@ -1,3 +1,5 @@
+"""Normalize supported state names and map them to abbreviations and FIPS codes."""
+
 # region State normalization
 
 STATE_NAME_TO_CODE = {
@@ -59,6 +61,7 @@ STATE_NAME_TO_CODE = {
 STATE_CODES = set(STATE_NAME_TO_CODE.values())
 
 def normalize_state(state: str) -> str:
+    """Accept a supported abbreviation or full state name; reject unknown values."""
     cleaned_state = state.strip()
 
     if len(cleaned_state) == 2:
@@ -134,6 +137,7 @@ STATE_FIPS = {
 }
 
 def get_state_fips(state: str) -> str:
+    """Resolve a supported state to its Census FIPS code."""
     state_code = normalize_state(state)
 
     if state_code not in STATE_FIPS:
@@ -201,6 +205,7 @@ STATE_CODE_TO_NAME = {
 }
 
 def get_state_name(state: str) -> str:
+    """Resolve a normalized abbreviation to the full name used by HRSA."""
     state_code = normalize_state(state)
 
     if state_code not in STATE_CODE_TO_NAME:

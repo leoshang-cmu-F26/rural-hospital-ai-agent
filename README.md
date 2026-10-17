@@ -422,3 +422,37 @@ or Clear chat resets the pair. Singular follow-ups with two active targets
 require clarification. Refreshing the page resets local context.
 
 Offline comparison checks: `python -m unittest app.tests.comparison_service_test`.
+
+
+## Code reading guide
+
+See [Code structure and reading guide](docs/code_structure.md) for module responsibilities, reading order, and offline verification commands.
+
+
+## Historical tribal facility directory
+
+`search_tribal_facility_directory` searches a curated table extracted from the
+CMS **IHS-CMS All Tribal Facilities Listing**, created **2020-01-26**:
+https://www.cms.gov/files/document/indian-healt-service-cms-all-final.pdf
+
+The tracked PDF and JSON snapshot live in `data/reference/`. The JSON contains
+163 source rows and 171 CCN entries because some rows list multiple CCNs. Its
+type-specific row counts match the PDF subtotals. Each row retains its page,
+type, city, state, and full CCN list; identifiers stay strings. The JSON records
+the original PDF SHA-256. `data/tribal_facilities.db` is an ignored, regenerable
+SQLite search index, built automatically from the JSON snapshot on first query.
+No PDF extraction library is needed to run the app.
+
+Example: `Which Wisconsin facilities are in the historical CMS/IHS tribal
+directory? Include types, listed CCNs, source date and pages.`
+
+This is structured historical lookup, **not vector RAG** and not a live registry.
+It has no county, street address, coordinates, financial narratives or service
+capacity. A missing match does not prove nonexistence. CCNs for FQHCs and other
+non-hospitals are not hospital financial-analysis identifiers; historical hospital
+entries must be rechecked in current CMS hospital data before analysis. Historical
+lookup clears the old active hospital context to prevent an unrelated follow-up.
+
+Offline tests: `python -m unittest app.tests.tribal_directory_test`.
+To reproduce extraction, install `pdfplumber` in a separate development environment
+and run `python scripts/extract_tribal_directory.py --pdf data/reference/ihs_cms_tribal_2020.pdf --output data/reference/ihs_cms_tribal_2020.json`.

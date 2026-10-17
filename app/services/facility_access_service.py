@@ -25,6 +25,7 @@ LIMITATIONS = [
 
 
 def _unavailable(message):
+    """Represent missing evidence explicitly instead of substituting zero."""
     return {'available': False, 'error': message}
 
 

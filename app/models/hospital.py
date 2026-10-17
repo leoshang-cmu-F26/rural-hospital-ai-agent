@@ -1,7 +1,11 @@
+"""Typed CMS hospital identity; CCNs remain strings to preserve leading zeros."""
+
 from pydantic import BaseModel
 
 
 class Hospital(BaseModel):
+    """CMS-listed hospital identity and administrative location."""
+
     facility_id: str
     facility_name: str
 

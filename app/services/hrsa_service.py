@@ -1,3 +1,5 @@
+"""County-associated primary-care shortage designations, coverage and TTL caching."""
+
 import threading
 from copy import deepcopy
 
@@ -7,6 +9,8 @@ from cachetools import TTLCache
 
 from app.common.constants import HRSA_FIELDS
 from app.utils.state_utils import get_state_name
+
+from app.services.agent_progress import report_progress
 
 HRSA_PRIMARY_CARE_HPSA_URL = (
     "https://gisportal.hrsa.gov/server/rest/services/"
@@ -164,23 +168,19 @@ def get_county_primary_care_hpsa(
         })
 
     # 4. Identify active designations and calculate the highest score.
-    active_designations = [
-        designation
-        for designation in matching_designations
-        if designation["status"] == "Designated"
-    ]
+    active_designations = []
+    for designation in matching_designations:
+        if designation['status'] == 'Designated':
+            active_designations.append(designation)
 
-    active_scores = [
-        designation["score"]
-        for designation in active_designations
-        if designation["score"] is not None
-    ]
+    active_scores = []
+    for designation in active_designations:
+        if designation['score'] is not None:
+            active_scores.append(designation['score'])
 
-    max_hpsa_score = (
-        max(active_scores)
-        if active_scores
-        else None
-    )
+    max_hpsa_score = None
+    if active_scores:
+        max_hpsa_score = max(active_scores)
 
     result = {
         "state": state_name,
@@ -214,5 +214,3 @@ def get_county_primary_care_hpsa(
 
     # 5. Return the county-level summary and matching designations.
     return result
-
-from app.services.agent_progress import report_progress

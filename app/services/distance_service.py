@@ -33,6 +33,8 @@ from app.services.geocoding_service import (
     geocode_hospital_record,
 )
 
+from app.services.agent_progress import report_progress
+
 
 EARTH_RADIUS_MILES = 3958.8
 
@@ -313,4 +315,3 @@ def get_nearest_hospitals(
             ),
         ],
     }
-from app.services.agent_progress import report_progress

@@ -1,14 +1,18 @@
+// Browser-owned conversation state: only compact identities and recent text.
+// Progress frames, evidence cards and full tool payloads are never replayed.
 let chatHistory = [];
 let currentFacility = null;
 let comparisonFacilities = [];
 const MAX_HISTORY_MESSAGES = 6;
 const MAX_HISTORY_CHARS = 2000;
 
+// Bind UI controls once; every request owns its temporary progress/evidence.
 const chatBox = document.getElementById("chat-box");
 const messageInput = document.getElementById("message-input");
 const sendButton = document.getElementById("send-button");
 
 
+// Send one request, consume ordered stream frames, and commit context on success.
 async function sendMessage() {
     const message = messageInput.value.trim();
 
@@ -16,6 +20,7 @@ async function sendMessage() {
         return;
     }
 
+    // Stage identity updates until a final answer arrives; failed requests do not commit them.
     let nextFacility = currentFacility;
     let nextComparison = comparisonFacilities;
     const evidence = new Map();
@@ -63,26 +68,44 @@ async function sendMessage() {
             throw new Error(errorMessage);
         }
 
-        if (!response.body) throw new Error("Streaming is unavailable.");
+        // Read newline-delimited events across arbitrary network chunk boundaries.
+        if (!response.body) {
+            throw new Error("Streaming is unavailable.");
+        }
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
         let completed = false;
         function consume(line) {
-            if (!line.trim()) return;
+            if (!line.trim()) {
+                return;
+            }
             const event = JSON.parse(line);
             if (event.type === "evidence") {
-                for (const section of event.sections || []) evidence.set(section.key, section);
+                for (const section of event.sections || []) {
+                    evidence.set(section.key, section);
+                }
             }
-            if (event.type === "context") { nextFacility = event.current_facility; nextComparison = []; }
+            // A selected single facility and a comparison pair are mutually exclusive.
+            if (event.type === "context") {
+                nextFacility = event.current_facility;
+                nextComparison = [];
+            }
             if (event.type === "comparison_context") {
                 nextComparison = (event.comparison_facilities || []).slice(0, 2);
                 nextFacility = null;
             }
-            if (event.type === "progress") updateProgress(event.message);
-            if (event.type === "error") throw new Error(event.message);
+            if (event.type === "progress") {
+                updateProgress(event.message);
+            }
+            if (event.type === "error") {
+                throw new Error(event.message);
+            }
             if (event.type === "result") {
-                if (completed) return;
+                if (completed) {
+                    return;
+                }
+                // Store only successful dialogue; cap both history count and message size.
                 completed = true;
                 currentFacility = nextFacility;
                 comparisonFacilities = nextComparison;
@@ -103,11 +126,19 @@ async function sendMessage() {
                 buffer += decoder.decode(value, { stream: !done });
                 const lines = buffer.split("\n");
                 buffer = lines.pop();
-                lines.forEach(consume);
-                if (done) break;
+                for (const line of lines) {
+                    consume(line);
+                }
+                if (done) {
+                    break;
+                }
             }
-            if (buffer.trim()) consume(buffer);
-            if (!completed) throw new Error("Connection ended before the answer was received.");
+            if (buffer.trim()) {
+                consume(buffer);
+            }
+            if (!completed) {
+                throw new Error("Connection ended before the answer was received.");
+            }
         } finally {
             await reader.cancel().catch(() => {});
             reader.releaseLock();
@@ -122,7 +153,7 @@ async function sendMessage() {
         );
 
     } finally {
-        // 6. Restore button
+        // Always remove the pending indicator and restore input, including on errors.
         stopProgress();
         setLoading(false);
 
@@ -132,33 +163,34 @@ async function sendMessage() {
 }
 
 
+// Render user text literally and agent Markdown through the safe DOM renderer.
 function addMessage(text, type) {
     const messageDiv = document.createElement("div");
 
-    messageDiv.classList.add(
-        "message",
-        type === "user"
-            ? "user-message"
-            : "agent-message"
-    );
+    messageDiv.classList.add("message");
+    if (type === "user") {
+        messageDiv.classList.add("user-message");
+    } else {
+        messageDiv.classList.add("agent-message");
+    }
 
 
     const labelDiv = document.createElement("div");
 
     labelDiv.classList.add("message-label");
 
-    labelDiv.textContent =
-        type === "user"
-            ? "You"
-            : "AI Agent";
+    if (type === "user") {
+        labelDiv.textContent = "You";
+    } else {
+        labelDiv.textContent = "AI Agent";
+    }
 
 
     const contentDiv = document.createElement("div");
 
     contentDiv.classList.add("message-content");
 
-    // For now, display Agent text safely as plain text.
-    // white-space: pre-wrap in CSS preserves line breaks.
+    // Markdown uses explicit DOM nodes; untrusted HTML is never interpolated.
     if (type === "agent" && typeof renderMarkdown === "function") {
         contentDiv.classList.add("markdown-content");
         renderMarkdown(text, contentDiv);
@@ -204,8 +236,11 @@ function useExample(text) {
 }
 
 
+// Reset rendered dialogue and both identity modes together, never mid-request.
 function clearChat() {
-    if (sendButton.disabled) return;
+    if (sendButton.disabled) {
+        return;
+    }
     chatHistory = [];
     currentFacility = null;
     comparisonFacilities = [];
@@ -240,6 +275,7 @@ window.addEventListener("DOMContentLoaded", function () {
     messageInput.focus();
 });
 
+// Progress lifecycle: one visible stage and elapsed timer per pending request.
 let progressNode = null;
 let progressTimer = null;
 let progressStarted = 0;
@@ -262,15 +298,21 @@ function startProgress() {
     chatBox.setAttribute("aria-busy", "true");
     updateProgress("Connecting to the agent…");
     progressTimer = setInterval(() => {
-        if (!progressNode) return;
+        if (!progressNode) {
+            return;
+        }
         const seconds = Math.floor((Date.now() - progressStarted) / 1000);
-        elapsed.textContent = `${seconds}s elapsed` +
-            (seconds >= 30 ? " · Data sources may take a little longer. Please keep this page open." : "");
+        elapsed.textContent = `${seconds}s elapsed`;
+        if (seconds >= 30) {
+            elapsed.textContent += " · Data sources may take a little longer. Please keep this page open.";
+        }
     }, 1000);
 }
 
 function updateProgress(message) {
-    if (!progressNode) return;
+    if (!progressNode) {
+        return;
+    }
     progressMessage = message;
     progressNode.querySelector(".progress-stage").textContent = message;
     scrollToBottom();
@@ -279,65 +321,124 @@ function updateProgress(message) {
 function stopProgress() {
     clearInterval(progressTimer);
     progressTimer = null;
-    if (progressNode) progressNode.remove();
+    if (progressNode) {
+        progressNode.remove();
+    }
     progressNode = null;
     chatBox.setAttribute("aria-busy", "false");
 }
 
 
+// Apply a per-message size cap in addition to the recent-message count limit.
 function compactHistory(text) {
-    if (text.length <= MAX_HISTORY_CHARS) return text;
+    if (text.length <= MAX_HISTORY_CHARS) {
+        return text;
+    }
     return text.slice(0, MAX_HISTORY_CHARS - 20) + "\n[Earlier text cut]";
 }
 
 
+// Display the active comparison pair or single facility from successful tool results.
 function updateCurrentFacility() {
     const card = document.getElementById("current-facility");
-    if (!card) return;
+    if (!card) {
+        return;
+    }
     if (comparisonFacilities.length === 2) {
         card.hidden = false;
-        card.textContent = "Comparing: " + comparisonFacilities.map(
-            f => `${f.facility_name} (CCN ${f.facility_id})`).join(" ↔ ");
+        const labels = [];
+        for (const facility of comparisonFacilities) {
+            labels.push(`${facility.facility_name} (CCN ${facility.facility_id})`);
+        }
+        card.textContent = "Comparing: " + labels.join(" ↔ ");
         return;
     }
     card.hidden = !currentFacility;
-    if (!currentFacility) { card.textContent = ""; return; }
+    if (!currentFacility) {
+        card.textContent = "";
+        return;
+    }
     const parts = [currentFacility.facility_name];
-    if (currentFacility.facility_id) parts.push(`CCN ${currentFacility.facility_id}`);
-    if (currentFacility.city) parts.push(currentFacility.city);
-    if (currentFacility.state) parts.push(currentFacility.state);
+    if (currentFacility.facility_id) {
+        parts.push(`CCN ${currentFacility.facility_id}`);
+    }
+    if (currentFacility.city) {
+        parts.push(currentFacility.city);
+    }
+    if (currentFacility.state) {
+        parts.push(currentFacility.state);
+    }
     card.textContent = "Current facility: " + parts.join(" · ");
 }
 
+// Evidence cards come from structured tool metadata, not generated prose.
 function renderEvidence(reply, sections) {
-    if (!sections.length) return;
-    const panel = document.createElement("details"); panel.className = "evidence-panel";
+    if (!sections.length) {
+        return;
+    }
+
+    // 1. Open coverage details automatically when at least one section has gaps.
+    const panel = document.createElement("details");
+    panel.className = "evidence-panel";
     const summary = document.createElement("summary");
-    const gaps = sections.filter(s => s.status !== "available").length;
-    summary.textContent = "Data sources & coverage" + (gaps ? ` · ${gaps} section(s) with gaps` : "");
+    let gaps = 0;
+    for (const section of sections) {
+        if (section.status !== "available") {
+            gaps++;
+        }
+    }
+    summary.textContent = "Data sources & coverage";
+    if (gaps) {
+        summary.textContent += ` · ${gaps} section(s) with gaps`;
+    }
     panel.appendChild(summary);
     panel.open = gaps > 0;
+
+    // 2. Render each source independently; missing evidence is not a zero finding.
     for (const section of sections) {
-        const item = document.createElement("div"); item.className = "evidence-item";
-        const title = document.createElement("strong"); title.textContent = section.label;
+        const item = document.createElement("div");
+        item.className = "evidence-item";
+        const title = document.createElement("strong");
+        title.textContent = section.label;
+
+        let status = "unavailable";
+        if (["available", "partial", "unavailable"].includes(section.status)) {
+            status = section.status;
+        }
+        const labels = {
+            available: "Available",
+            partial: "Partial data",
+            unavailable: "Unavailable",
+        };
         const badge = document.createElement("span");
-        const status = ["available", "partial", "unavailable"].includes(section.status) ? section.status : "unavailable";
         badge.className = "evidence-badge " + status;
-        badge.textContent = {available:"Available",partial:"Partial data",unavailable:"Unavailable"}[status];
-        const source = document.createElement("div"); source.textContent = "Source: " + section.source;
+        badge.textContent = labels[status];
+
+        const source = document.createElement("div");
+        source.textContent = "Source: " + section.source;
         item.append(title, badge, source);
+
+        // Dataset years and fiscal periods stay separate to avoid false alignment.
         if (section.period) {
-            const period = document.createElement("div"); period.textContent = "Report year(s): " + section.period; item.appendChild(period);
+            const period = document.createElement("div");
+            period.textContent = "Report year(s): " + section.period;
+            item.appendChild(period);
         }
         if (section.fiscal_period) {
-            const fiscal = document.createElement("div"); fiscal.textContent = "Fiscal period: " + section.fiscal_period; item.appendChild(fiscal);
+            const fiscal = document.createElement("div");
+            fiscal.textContent = "Fiscal period: " + section.fiscal_period;
+            item.appendChild(fiscal);
         }
         if (section.details) {
-            const detail = document.createElement("div"); detail.className = "evidence-detail";
-            detail.textContent = section.details; item.appendChild(detail);
+            const detail = document.createElement("div");
+            detail.className = "evidence-detail";
+            detail.textContent = section.details;
+            item.appendChild(detail);
         }
         panel.appendChild(item);
     }
+
+    // 3. Attach coverage to its own answer; never add these cards to chatHistory.
     reply.appendChild(panel);
     scrollToBottom();
 }

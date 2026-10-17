@@ -1,3 +1,5 @@
+"""Application startup, background catalog warmup, API routes and demo assets."""
+
 import logging
 import threading
 from contextlib import asynccontextmanager
@@ -30,6 +32,8 @@ def _warm_cost_report_catalog() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    """Warm the catalog in a background thread without blocking application startup."""
+    # Best-effort background warmup must not delay serving the UI and health endpoint.
     threading.Thread(
         target=_warm_cost_report_catalog,
         name="cms-catalog-warmup",
@@ -45,6 +49,7 @@ app = FastAPI(
 )
 
 
+# Register API endpoints before mounting the browser demo.
 app.include_router(router)
 app.mount(
     "/demo",

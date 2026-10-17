@@ -1,14 +1,16 @@
+"""County ACS demographics and hospital-to-county resolution with TTL caching."""
+
 import os
 import threading
 from copy import deepcopy
 import requests
 from dotenv import load_dotenv
 from cachetools import TTLCache
-import requests
-from dotenv import load_dotenv
 from app.common.constants import CENSUS_FIELDS
 from app.services.cms_service import get_hospital_by_id
 from app.utils.state_utils import get_state_fips
+
+from app.services.agent_progress import report_progress
 
 
 load_dotenv()
@@ -164,7 +166,7 @@ def get_county_demographics(
             COUNTY_DEMOGRAPHICS_CACHE[cache_key] = deepcopy(data)
 
         return data
-    
+
     return None
 
 
@@ -240,4 +242,3 @@ def get_hospital_demographics(
 
         **demographics,
     }
-from app.services.agent_progress import report_progress

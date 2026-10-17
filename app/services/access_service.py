@@ -202,13 +202,13 @@ def get_healthcare_access_analysis(
         demographics is None
         or "error" in demographics
     ):
+        if isinstance(demographics, dict):
+            demographic_error = demographics.get("error")
+        else:
+            demographic_error = "Demographic data unavailable."
         demographic_result = {
             "available": False,
-            "error": (
-                demographics.get("error")
-                if isinstance(demographics, dict)
-                else "Demographic data unavailable."
-            ),
+            "error": demographic_error,
         }
 
     else:

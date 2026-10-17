@@ -44,22 +44,29 @@ STABLE_THRESHOLDS = {
 # region Pure trend math
 
 def classify_direction(indicator: str, change: float | None) -> str:
+    """Apply application thresholds; these labels are not official CMS ratings."""
+    # Missing endpoints cannot establish a direction.
     if change is None:
         return "insufficient_data"
-
     if abs(change) < STABLE_THRESHOLDS.get(indicator, 0.0):
         return "stable"
 
+    # Improvement depends on the indicator; cost-to-charge has no quality label.
     if indicator in HIGHER_IS_BETTER:
-        return "improving" if change > 0 else "worsening"
-
+        if change > 0:
+            return "improving"
+        return "worsening"
     if indicator in LOWER_IS_BETTER:
-        return "improving" if change < 0 else "worsening"
-
-    return "increased" if change > 0 else "decreased"
+        if change < 0:
+            return "improving"
+        return "worsening"
+    if change > 0:
+        return "increased"
+    return "decreased"
 
 
 def count_trailing_true(flags: list[bool]) -> int:
+    """Count trailing observed flags until the first false value."""
     count = 0
 
     for flag in reversed(flags):
@@ -74,25 +81,30 @@ def summarize_indicator_trend(
     indicator: str,
     yearly_indicators: list[FinancialIndicators],
 ) -> IndicatorTrend:
+    # Order observed reports before comparing endpoints. Missing values stay missing.
     ordered = sorted(
         yearly_indicators,
         key=lambda item: item.report_year or 0,
     )
 
-    values_by_year = {
-        item.report_year: getattr(item, indicator)
-        for item in ordered
-        if item.report_year is not None
-    }
+    # Build the indicator series from known report years only.
+    values_by_year = {}
+    for item in ordered:
+        if item.report_year is not None:
+            values_by_year[item.report_year] = getattr(item, indicator)
 
-    available = [
-        (year, value)
-        for year, value in values_by_year.items()
-        if value is not None
-    ]
+    available = []
+    for (year, value) in values_by_year.items():
+        if value is not None:
+            available.append((year, value))
 
+    # Two observed values are needed to describe a change.
     if len(available) < 2:
-        first_year, first_value = available[0] if available else (None, None)
+        if available:
+            first_year, first_value = available[0]
+        else:
+            first_year = None
+            first_value = None
         return IndicatorTrend(
             indicator=indicator,
             values_by_year=values_by_year,
@@ -105,6 +117,7 @@ def summarize_indicator_trend(
             direction="insufficient_data",
         )
 
+    # Compare actual endpoints; do not interpolate missing intervening years.
     first_year, first_value = available[0]
     last_year, last_value = available[-1]
     change = round(last_value - first_value, 4)
@@ -129,70 +142,70 @@ def build_financial_trend(
     years_without_report: list[int],
     years_unavailable: dict[int, str],
 ) -> FinancialTrend:
-    ordered = sorted(
-        yearly_indicators,
-        key=lambda item: item.report_year or 0,
-    )
+    """Assemble deterministic history summaries without filling missing years."""
+    # 1. Order reports and use the latest record for the hospital name.
+    ordered = sorted(yearly_indicators, key=lambda item: item.report_year or 0)
+    latest = None
+    if ordered:
+        latest = ordered[-1]
+    hospital_name = None
+    if latest:
+        hospital_name = latest.hospital_name
 
-    latest = ordered[-1] if ordered else None
+    # 2. Use the newest reported rural classification; absence remains unknown.
+    rural_source = None
+    for item in reversed(ordered):
+        if item.is_rural is not None:
+            rural_source = item
+            break
+    rural_versus_urban = None
+    is_rural = None
+    if rural_source:
+        rural_versus_urban = rural_source.rural_versus_urban
+        is_rural = rural_source.is_rural
 
-    rural_source = next(
-        (item for item in reversed(ordered) if item.is_rural is not None),
-        None,
-    )
+    # 3. Collect observed years, operating losses and balance-sheet signals.
+    negative_margin_flags = []
+    margins = []
+    years_with_data = []
+    negative_margin_years = []
+    liabilities_exceeding_assets_years = []
+    for item in ordered:
+        is_negative = item.operating_margin is not None and item.operating_margin < 0
+        negative_margin_flags.append(is_negative)
+        if item.operating_margin is not None:
+            margins.append(item.operating_margin)
+        if item.report_year is not None:
+            years_with_data.append(item.report_year)
+            if is_negative:
+                negative_margin_years.append(item.report_year)
+            if item.liability_to_asset_ratio is not None and item.liability_to_asset_ratio > 100:
+                liabilities_exceeding_assets_years.append(item.report_year)
 
-    negative_margin_flags = [
-        item.operating_margin is not None and item.operating_margin < 0
-        for item in ordered
-    ]
+    # 4. Summarize each metric from actual endpoints and average known margins.
+    indicator_trends = {}
+    for indicator in TREND_INDICATORS:
+        indicator_trends[indicator] = summarize_indicator_trend(indicator, ordered)
+    average_margin = None
+    if margins:
+        average_margin = round(mean(margins), 2)
 
-    margins = [
-        item.operating_margin
-        for item in ordered
-        if item.operating_margin is not None
-    ]
-
+    # 5. Preserve missing-report and unavailable-dataset years separately.
     return FinancialTrend(
         facility_id=facility_id,
-        hospital_name=latest.hospital_name if latest else None,
-
-        rural_versus_urban=(
-            rural_source.rural_versus_urban if rural_source else None
-        ),
-        is_rural=rural_source.is_rural if rural_source else None,
-
+        hospital_name=hospital_name,
+        rural_versus_urban=rural_versus_urban,
+        is_rural=is_rural,
         years_requested=years_requested,
-        years_with_data=[
-            item.report_year
-            for item in ordered
-            if item.report_year is not None
-        ],
+        years_with_data=years_with_data,
         years_without_report=sorted(years_without_report),
         years_unavailable=dict(sorted(years_unavailable.items())),
-
         yearly_indicators=ordered,
-        indicator_trends={
-            indicator: summarize_indicator_trend(indicator, ordered)
-            for indicator in TREND_INDICATORS
-        },
-
-        years_with_negative_operating_margin=[
-            item.report_year
-            for item, is_negative in zip(ordered, negative_margin_flags)
-            if is_negative and item.report_year is not None
-        ],
-        consecutive_negative_operating_margin_years=
-            count_trailing_true(negative_margin_flags),
-        years_with_liabilities_exceeding_assets=[
-            item.report_year
-            for item in ordered
-            if item.liability_to_asset_ratio is not None
-            and item.liability_to_asset_ratio > 100
-            and item.report_year is not None
-        ],
-        average_operating_margin=(
-            round(mean(margins), 2) if margins else None
-        ),
+        indicator_trends=indicator_trends,
+        years_with_negative_operating_margin=negative_margin_years,
+        consecutive_negative_operating_margin_years=count_trailing_true(negative_margin_flags),
+        years_with_liabilities_exceeding_assets=liabilities_exceeding_assets_years,
+        average_operating_margin=average_margin,
     )
 
 # endregion
@@ -210,16 +223,16 @@ def analyze_financial_trend_for_hospital(
     build its FinancialTrend. May raise ValueError (bad year range)
     or CostReportUnavailableError (no dataset reachable at all).
     """
+    # Retrieve source history once, then calculate each yearly record deterministically.
     history = get_financial_history_by_hospital(
         facility_id=facility_id,
         start_year=start_year,
         end_year=end_year,
     )
 
-    yearly_indicators = [
-        calculate_financial_indicators(record)
-        for record in history.records
-    ]
+    yearly_indicators = []
+    for record in history.records:
+        yearly_indicators.append(calculate_financial_indicators(record))
 
     return build_financial_trend(
         facility_id=history.facility_id,

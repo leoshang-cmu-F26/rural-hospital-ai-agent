@@ -167,6 +167,7 @@ def geocode_hospital(
             facility_id
         ]
 
+    # Memory miss: SQLite survives process restarts and repopulates the TTL cache.
     persistent_result = read_coordinate_cache(facility_id)
     if persistent_result is not None:
         HOSPITAL_COORDINATE_CACHE[facility_id] = persistent_result
@@ -253,6 +254,7 @@ def geocode_hospital(
     # 6. Cache coordinates
     # -----------------------------------------------------
 
+    # Persist successful matches before storing the fast in-memory copy.
     write_coordinate_cache(result)
     HOSPITAL_COORDINATE_CACHE[
         facility_id
@@ -291,6 +293,7 @@ def geocode_hospital_record(
             facility_id
         ]
 
+    # Memory miss: SQLite survives process restarts and repopulates the TTL cache.
     persistent_result = read_coordinate_cache(facility_id)
     if persistent_result is not None:
         HOSPITAL_COORDINATE_CACHE[facility_id] = persistent_result
@@ -371,6 +374,7 @@ def geocode_hospital_record(
     # 5. Cache
     # -----------------------------------------------------
 
+    # Persist successful matches before storing the fast in-memory copy.
     write_coordinate_cache(result)
     HOSPITAL_COORDINATE_CACHE[
         facility_id
