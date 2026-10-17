@@ -248,8 +248,8 @@ function clearChat() {
     chatBox.innerHTML = "";
 
     addMessage(
-        "Ask about a hospital by name, state, or county. " +
-        "You can use either a hospital name or a CMS CCN.",
+        "Ask about a hospital by name, state and county, or use its CMS CCN. " +
+        "Request a full investigation or focus on finances, trends or healthcare access.",
         "agent"
     );
 

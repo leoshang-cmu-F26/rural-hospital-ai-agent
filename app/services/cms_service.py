@@ -1,5 +1,3 @@
-"""CMS hospital retrieval, bounded caches, pagination and location-aware name search."""
-
 import re
 import unicodedata
 import requests
@@ -31,18 +29,12 @@ HOSPITAL_ID_CACHE = TTLCache(
 
 
 def _normalize_search_text(value):
-    """Normalize accents, case and punctuation without guessing facility aliases."""
     value = unicodedata.normalize("NFKD", value or "")
-    characters = []
-    for character in value:
-        if not unicodedata.combining(character):
-            characters.append(character)
-    value = ''.join(characters)
+    value = "".join(c for c in value if not unicodedata.combining(c))
     return " ".join(re.sub(r"[^a-z0-9]+", " ", value.casefold()).split())
 
 
 def normalize_county(value):
-    """Normalize a county label and reject a missing county name."""
     normalized = _normalize_search_text(value)
     if normalized.endswith(" county"):
         normalized = normalized[:-7].strip()
@@ -53,7 +45,6 @@ def normalize_county(value):
 
 def _query_hospital_rows(params):
     """Fetch explicit pages so a partial response cannot masquerade as unique."""
-    # 1. Retrieve complete pages and keep one record per CCN.
     rows, seen = [], set()
     page_size = 500
     for page in range(30):
@@ -68,7 +59,6 @@ def _query_hospital_rows(params):
                 seen.add(key)
                 rows.append(row)
                 added += 1
-        # 2. Only a completed final page establishes full search coverage.
         if len(batch) < page_size:
             return rows
         if not added:
@@ -77,12 +67,9 @@ def _query_hospital_rows(params):
 
 
 def get_hospitals_by_state(state: str):
-    """Reuse a successful state cache entry or retrieve all CMS result pages."""
     state_code = normalize_state(state)
-    # 1. Reuse successful state data before contacting CMS.
     if state_code in STATE_HOSPITAL_CACHE:
         return STATE_HOSPITAL_CACHE[state_code]
-    # 2. Cache only after every requested page has completed successfully.
     results = _query_hospital_rows({
         "conditions[0][property]": HOSPITAL_FIELDS.STATE_FIELD,
         "conditions[0][value]": state_code,
@@ -92,9 +79,8 @@ def get_hospitals_by_state(state: str):
     return results
 
 def get_hospital_by_id(facility_id: str):
-
+    
     # Check cache first
-    """Resolve a CCN through the memory cache before requesting CMS."""
     if facility_id in HOSPITAL_ID_CACHE:
         return HOSPITAL_ID_CACHE[facility_id]
 
@@ -131,14 +117,12 @@ def search_hospitals_by_name(name: str, state: str | None = None,
     Punctuation and case are normalized. No fuzzy substitution or invented
     alias is used. Unknown historical names still require clarification.
     """
-    # 1. Normalize the name and user constraints without silently dropping them.
     normalized = _normalize_search_text(name)
     if not normalized:
         raise ValueError("Hospital name must not be blank.")
-    county_key = None
-    if county is not None:
-        county_key = normalize_county(county)
-    # 2. A supplied state narrows retrieval; otherwise query the most specific token.
+    
+    county_key = normalize_county(county) if county is not None else None
+
     if state is not None:
         state_code = normalize_state(state)
         rows = get_hospitals_by_state(state_code)
@@ -151,24 +135,23 @@ def search_hospitals_by_name(name: str, state: str | None = None,
             "conditions[0][value]": token.upper(),
             "conditions[0][operator]": "contains",
         })
-    # 3. Match every name token and both location constraints locally.
+
     hospitals = []
     for row in rows:
         row_name = _normalize_search_text(row.get("facility_name"))
-        all_tokens_match = True
-        for token in normalized.split():
-            if token not in row_name.split():
-                all_tokens_match = False
-                break
-        if not all_tokens_match:
+
+        if not all(token in row_name.split() for token in normalized.split()):
             continue
+
         if state is not None and row.get("state", "").upper() != state_code:
             continue
+
         row_county = _normalize_search_text(row.get("countyparish"))
         if row_county.endswith(" county"):
             row_county = row_county[:-7].strip()
         if county_key is not None and row_county != county_key:
             continue
+
         hospitals.append(Hospital(**row))
-    # 4. Stable ordering helps the user distinguish ambiguous candidates.
+        
     return sorted(hospitals, key=lambda h: (h.facility_name, h.state, h.facility_id))

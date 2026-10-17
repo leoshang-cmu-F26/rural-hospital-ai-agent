@@ -32,6 +32,7 @@ def build_hospital_investigation(facility_id, financial_lookup, trend_lookup,
         return {'error': 'A hospital CCN is required.'}
     if start_year is not None and end_year is not None and start_year > end_year:
         return {'error': 'start_year must not exceed end_year.'}
+    
     # 2. Resolve the target once; never substitute another hospital.
     report_progress('Identifying the hospital for a full investigation…')
     try:
@@ -44,13 +45,16 @@ def build_hospital_investigation(facility_id, financial_lookup, trend_lookup,
     # 3. Retrieve latest financials separately from the requested trend period.
     report_progress('Retrieving the latest financial report and indicators…')
     financials = _section(financial_lookup, facility_id=facility_id)
+
     # 4. Summarize the available multi-year history with its actual year coverage.
     report_progress('Reviewing multi-year financial trends…')
     trend = _section(trend_lookup, facility_id=facility_id,
                      start_year=start_year, end_year=end_year)
+    
     # 5. Gather administrative, demographic, shortage and distance evidence.
     report_progress('Gathering hospital alternatives, population and shortage evidence…')
     access = _section(access_lookup, facility_id=facility_id)
+
     # 6. Record section-level and nested gaps without changing numeric values.
     sections = {'financials': financials, 'financial_trend': trend, 'healthcare_access': access}
     gaps = []
@@ -76,6 +80,7 @@ def build_hospital_investigation(facility_id, financial_lookup, trend_lookup,
         skipped = access.get('distance_analysis', {}).get('skipped_geocoding_count', 0)
         if skipped:
             gaps.append({'section': 'distance_analysis', 'excluded_hospital_count': skipped})
+    
     # 7. Partial means incomplete evidence, not a hospital risk classification.
     if gaps:
         status = 'partial'
