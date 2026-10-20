@@ -1,5 +1,7 @@
 """Agent-facing tools: validate inputs and expose deterministic service results."""
 
+import requests
+
 from langchain_core.tools import tool
 from app.common.constants import HOSPITAL_FIELDS
 from app.services.cms_service import (
@@ -536,7 +538,33 @@ def resolve_facility(name: str | None = None, state: str | None = None,
     return resolve_facility_identity(name, state, county, facility_id)
 
 
+@tool
+def analyze_area_healthcare_access(
+    state: str, county: str | None = None, rural_only: bool = True,
+    year: int | None = None, zip_code: str | None = None,
+) -> dict:
+    """Analyze hospital access across a state, county or five-digit ZIP in that state.
+
+    No target hospital/CCN is required. Pass the user's county and state without
+    dropping filters. zip_code is a five-digit string preserving leading zeros;
+    state is required. County and ZIP filters intersect. rural_only defaults true;
+    set false for all hospitals. ZIP restricts hospital locations, not neighbors.
+    Demographics/HPSA remain county-level, not ZIP or ZCTA estimates.
+    year selects one CMS cost-report year for rural classification, default latest
+    known dataset. Unknown classifications are disclosed, never assumed urban.
+    County evidence is deduplicated. Neighbors include all same-state hospital
+    types, even outside the target county. Report coverage, gaps and limitations.
+    """
+    from app.services.area_access_service import analyze_area_access
+    try:
+        return analyze_area_access(state, county, rural_only, year, zip_code=zip_code)
+    except (ValueError, requests.RequestException) as error:
+        return {'report_kind': 'area_healthcare_access', 'status': 'unavailable',
+                'error': str(error)}
+
+
 HOSPITAL_AGENT_TOOLS = [
+    analyze_area_healthcare_access,
     search_tribal_facility_directory,
     compare_hospital_investigations,
     investigate_hospital,  # Investigate a hospital with financials, trend, and access in one report.

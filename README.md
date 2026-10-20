@@ -456,3 +456,48 @@ lookup clears the old active hospital context to prevent an unrelated follow-up.
 Offline tests: `python -m unittest app.tests.tribal_directory_test`.
 To reproduce extraction, install `pdfplumber` in a separate development environment
 and run `python scripts/extract_tribal_directory.py --pdf data/reference/ihs_cms_tribal_2020.pdf --output data/reference/ihs_cms_tribal_2020.json`.
+
+
+### State and county healthcare-access analysis
+
+`analyze_area_healthcare_access(state, county=None, rural_only=True, year=None)`
+retrieves all current CMS-listed hospital targets in the requested geography.
+A county always needs its state. For rural-only requests, eligibility uses the
+CMS cost report `Rural Versus Urban` field (`R` / `U`) in one dataset year:
+explicit `year`, or the latest known year. Missing reports/unknown codes are
+reported separately, never assumed urban; no backward-year substitution is made.
+Set `rural_only=False` to analyze all hospitals without cost-report classification.
+
+The deterministic service geocodes each statewide hospital once per request,
+then calculates each selected hospital's five nearest same-state alternatives.
+Urban and out-of-county hospitals remain candidates. Persistent coordinate
+caches are reused. County ACS and HRSA evidence is retrieved once per represented
+county. Output includes cohort counts, classification gaps, per-hospital results,
+source/period metadata in county evidence, and a nearest-distance summary with
+its denominator. No model call per hospital is needed. Progress events remain
+visible during classification, geocoding and county retrieval.
+
+This is hospital-centered context, not a population-wide access assessment:
+counties without selected hospitals are not assessed; county populations must
+not be summed across hospital rows. Cross-state neighbors, travel times, capacity,
+service equivalence and patient eligibility are not assessed. Initial statewide
+runs may take several minutes, especially with a cold coordinate cache.
+
+Example prompts:
+- Analyze healthcare access around rural hospitals across Wyoming.
+- Analyze healthcare access around rural hospitals in Fremont County, Wyoming.
+- Analyze healthcare access around all hospitals in Juneau County, Wisconsin.
+- Analyze rural hospital healthcare access in Wyoming using 2023 classification.
+
+Offline regression tests: `python -m pytest app/tests/area_access_test.py -q`.
+
+
+ZIP filtering is also supported:
+`analyze_area_healthcare_access(state="WI", zip_code="53948", rural_only=False)`.
+Use a five-digit string (leading zeros are preserved) and supply state. A county
+plus ZIP request applies both filters, never silently broadens either. Stored
+CMS ZIP+4 values match their first five digits. The filter selects hospital
+mailing locations; it does not calculate a radius, ZIP population coverage or
+Census ZCTA estimates. Neighbors still include the entire state. Demographics
+and HPSA remain county-level and may cover several represented counties in one
+ZIP. No matching hospital does not establish that nearby care is absent.

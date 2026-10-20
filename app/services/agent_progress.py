@@ -22,6 +22,7 @@ class ToolProgressHandler(BaseCallbackHandler):
     def on_tool_start(self, serialized, input_str, **kwargs):
         # Publish readable activity names, never model reasoning or raw inputs.
         messages = {
+            'analyze_area_healthcare_access': 'Analyzing healthcare access across the requested area…',
             'resolve_facility': 'Checking facility identity and current CMS records…',
             'search_tribal_facility_directory': 'Searching the historical CMS/IHS tribal facility directory…',
             'compare_hospital_investigations': 'Aligning reports and comparing both hospitals…',

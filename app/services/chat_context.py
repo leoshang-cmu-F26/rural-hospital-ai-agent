@@ -65,6 +65,8 @@ def extract_facility(output):
             raw = json.loads(raw)
         except (TypeError, ValueError):
             return None, False
+    if isinstance(raw, dict) and raw.get('report_kind') == 'area_healthcare_access':
+        return None, True
     if not isinstance(raw, dict) or 'error' in raw:
         return None, False
     # A new failed/ambiguous resolution must clear the previous hospital.

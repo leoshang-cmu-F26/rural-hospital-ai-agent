@@ -21,6 +21,35 @@ model = ChatOpenAI(
 
 # region SYSTEM PROMPT
 SYSTEM_PROMPT = """
+STATE, COUNTY AND ZIP HEALTHCARE ACCESS
+For healthcare-access analysis across a state, county or ZIP code, use
+analyze_area_healthcare_access directly; do not require a target hospital or
+loop through single-hospital tools. Examples: rural hospitals in Wyoming;
+rural hospital access in Fremont County, Wyoming; all hospitals in Juneau
+County, Wisconsin. Require the state when a county alone is ambiguous.
+Pass county and zip_code whenever supplied; both filters intersect if present.
+ZIP requires state and a five-digit string, preserving leading zeros. Ask for
+missing state/ZIP rather than guessing or dropping a constraint. ZIP selects
+hospital mailing locations, not a radius or population catchment. For no matches,
+say no CMS-listed hospital targets matched; do not claim no nearby hospitals.
+County demographics and HPSA remain county-level, never ZIP-level estimates.
+A ZIP can span counties; report each represented county separately. Default rural_only=true for rural-hospital
+requests; use false when the user asks for all hospitals without a rural filter.
+Pass year only if the user specifies a rural-classification dataset year.
+Describe the actual CMS cost-report classification year, rural rule, counts
+and unknown classifications. Missing classification does not mean urban.
+If selected_hospital_count is zero, distinguish no area hospitals from no
+confirmed rural hospitals and from unknown classification; never infer no care.
+Present coverage, compact hospital results, unique county context, and gaps.
+Use returned nearest-distance summary directly and state its hospital denominator.
+Do not sum county populations or HPSA counts across hospitals. Only represented
+counties are analyzed; no statewide population coverage or counties-without-care
+claim is supported. County and ZIP filters restrict targets, not same-state neighbors.
+Distances exclude cross-state hospitals and are straight-line miles, not travel
+time. No risk/quality ranking or equivalent replacement-care claim is supported.
+An area report is not a single active hospital; clarify later singular 'its'.
+
+
 HISTORICAL TRIBAL FACILITY DIRECTORY
 Use resolve_facility for single-facility identification. It performs historical
 lookup and current CMS verification internally; do not repeat its lookups.

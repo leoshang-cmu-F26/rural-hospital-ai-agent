@@ -13,6 +13,23 @@ def evidence_summary(output):
             return []
     if not isinstance(raw, dict):
         return []
+    # Area coverage is a separate card, never a single-hospital evidence summary.
+    if raw.get('report_kind') == 'area_healthcare_access':
+        coverage = raw.get('coverage', {})
+        status = raw.get('status', 'unavailable')
+        if status == 'complete':
+            status = 'available'
+        return [{
+            'key': 'area_access', 'label': 'Area healthcare-access coverage',
+            'status': status,
+            'source': 'CMS Hospital General Information / Cost Reports; Census ACS; HRSA',
+            'period': str(raw.get('classification', {}).get('dataset_year') or 'Not applied'),
+            'details': (
+                f"Selected hospitals: {coverage.get('selected_hospital_count', 0)}; "
+                f"unknown rural classification: {coverage.get('unknown_classification_count', 0)}. "
+                'County evidence covers represented counties only; distances are same-state straight-line miles.'
+            ),
+        }]
     # Historical references have a source date, not verified current coverage.
     if raw.get('directory_kind') == 'historical_tribal_facilities':
         return [{

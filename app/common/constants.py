@@ -1,5 +1,3 @@
-"""Shared source-field names used by CMS, Census and HRSA adapters."""
-
 from dataclasses import dataclass
 
 
