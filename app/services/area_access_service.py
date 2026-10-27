@@ -31,19 +31,24 @@ def analyze_area_access(state, county=None, rural_only=True, year=None, zip_code
     """Analyze eligible hospital locations; county/ZIP restrict targets, not neighbors."""
     # 1. Validate geography before requests; use one cost-report year for all targets.
     state_code = normalize_state(state)
+
     # ZIP stays a string so leading zeros survive. ZIP+4 in CMS rows maps to ZIP5.
     zip_key = None
     if zip_code is not None:
         if not isinstance(zip_code, str) or not re.fullmatch(r'[0-9]{5}', zip_code.strip()):
             raise ValueError('zip_code must be a five-digit string; supply state separately.')
         zip_key = zip_code.strip()
+
     county_key = None
     if county is not None:
         county_key = normalize_county(county)
+
+
     if year is not None and (isinstance(year, bool) or not isinstance(year, int) or year < 2011):
         raise ValueError('year must be an integer CMS dataset year from 2011 onward.')
     if not isinstance(rural_only, bool):
         raise ValueError('rural_only must be a boolean.')
+
     report_progress('Retrieving the complete state hospital directory…')
     rows = get_hospitals_by_state(state_code)
     targets = []

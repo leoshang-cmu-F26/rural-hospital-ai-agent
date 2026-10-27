@@ -363,12 +363,13 @@ def test_trend_route_end_to_end(cost_reports):
     margin = body["indicator_trends"]["operating_margin"]
     assert (margin["first_year"], margin["first_value"]) == (2020, 5.0)
     assert (margin["last_year"], margin["last_value"]) == (2024, -20.0)
-    assert margin["change"] == -25.0
-    assert margin["direction"] == "worsening"
+    assert margin["change"] is None
+    assert margin["direction"] == "requires_review"
+    assert any(item["code"] == "trend_fiscal_periods" for item in body["quality_warnings"])
 
-    assert body["indicator_trends"]["liability_to_asset_ratio"]["direction"] == "worsening"
-    assert body["indicator_trends"]["occupancy_rate"]["direction"] == "stable"
-    assert body["indicator_trends"]["cost_to_charge_ratio"]["direction"] == "stable"
+    assert body["indicator_trends"]["liability_to_asset_ratio"]["direction"] == "requires_review"
+    assert body["indicator_trends"]["occupancy_rate"]["direction"] == "requires_review"
+    assert body["indicator_trends"]["cost_to_charge_ratio"]["direction"] == "requires_review"
 
     assert body["years_with_negative_operating_margin"] == [2023, 2024]
     assert body["consecutive_negative_operating_margin_years"] == 2
@@ -390,7 +391,7 @@ def test_agent_financial_tools_return_evidence_for_the_llm(cost_reports):
     assert trend["years_with_data"] == [2020, 2022, 2023, 2024]
     assert trend["years_without_report"] == [2021]
     assert trend["distress_signals"]["consecutive_negative_operating_margin_years"] == 2
-    assert trend["indicator_trends"]["operating_margin"]["direction"] == "worsening"
+    assert trend["indicator_trends"]["operating_margin"]["direction"] == "requires_review"
     # The ToolMessage is kept compact: one flat row per year.
     assert set(trend["yearly_indicators"][0]) == {
         "report_year", "fiscal_year_begin", "fiscal_year_end",

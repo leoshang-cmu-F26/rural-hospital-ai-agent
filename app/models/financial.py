@@ -57,6 +57,9 @@ class FinancialIndicators(BaseModel):
     cost_to_charge_ratio: float | None = None
 
     missing_fields: list[str] = []
+    # Values remain traceable; these metrics must not be ranked or interpreted.
+    blocked_metrics: list[str] = []
+    quality_warnings: list[dict] = []
 
 
 class FinancialHistory(BaseModel):
@@ -90,6 +93,7 @@ class IndicatorTrend(BaseModel):
     # improving | worsening | stable | increased | decreased
     # | insufficient_data
     direction: str
+    quality_warnings: list[dict] = []
 
 
 class FinancialTrend(BaseModel):
@@ -113,3 +117,4 @@ class FinancialTrend(BaseModel):
     consecutive_negative_operating_margin_years: int
     years_with_liabilities_exceeding_assets: list[int]
     average_operating_margin: float | None = None
+    quality_warnings: list[dict] = []

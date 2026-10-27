@@ -3,6 +3,7 @@ from contextvars import ContextVar
 from app.services.chat_context import extract_facility, extract_comparison
 from langchain_core.callbacks import BaseCallbackHandler
 from app.services.evidence_summary import evidence_summary
+from app.services.data_quality_service import collect_quality_warnings
 
 # One sink per execution context avoids mixing concurrent conversations.
 _sink = ContextVar('agent_progress_sink', default=None)
@@ -22,6 +23,7 @@ class ToolProgressHandler(BaseCallbackHandler):
     def on_tool_start(self, serialized, input_str, **kwargs):
         # Publish readable activity names, never model reasoning or raw inputs.
         messages = {
+            'search_methodology_documents': 'Searching official methodology documents…',
             'analyze_area_healthcare_access': 'Analyzing healthcare access across the requested area…',
             'resolve_facility': 'Checking facility identity and current CMS records…',
             'search_tribal_facility_directory': 'Searching the historical CMS/IHS tribal facility directory…',
@@ -41,6 +43,9 @@ class ToolProgressHandler(BaseCallbackHandler):
 
     def on_tool_end(self, output, **kwargs):
         # Tool completion can update evidence cards and the active identity/pair.
+        warnings = collect_quality_warnings(output)
+        if warnings:
+            self.sink({'type': 'warnings', 'warnings': warnings})
         evidence = evidence_summary(output)
         if evidence:
             self.sink({'type': 'evidence', 'sections': evidence})

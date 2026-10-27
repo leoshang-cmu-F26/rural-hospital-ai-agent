@@ -24,6 +24,7 @@ async function sendMessage() {
     let nextFacility = currentFacility;
     let nextComparison = comparisonFacilities;
     const evidence = new Map();
+    const warnings = new Map();
     // 1. Show user message in chat
     addMessage(message, "user");
 
@@ -86,6 +87,12 @@ async function sendMessage() {
                     evidence.set(section.key, section);
                 }
             }
+            if (event.type === "warnings") {
+                for (const warning of event.warnings || []) {
+                    const key = [warning.facility_id, warning.facility_name, warning.code, warning.metric, warning.report_year].join(":");
+                    warnings.set(key, warning);
+                }
+            }
             // A selected single facility and a comparison pair are mutually exclusive.
             if (event.type === "context") {
                 nextFacility = event.current_facility;
@@ -116,6 +123,7 @@ async function sendMessage() {
                 chatHistory = chatHistory.slice(-MAX_HISTORY_MESSAGES);
                 stopProgress();
                 const reply = addMessage(event.response, "agent");
+                renderWarnings(reply, Array.from(warnings.values()));
                 renderEvidence(reply, Array.from(evidence.values()));
                 updateCurrentFacility();
             }
@@ -441,4 +449,41 @@ function renderEvidence(reply, sections) {
     // 3. Attach coverage to its own answer; never add these cards to chatHistory.
     reply.appendChild(panel);
     scrollToBottom();
+}
+
+
+// Data-quality notices stay visible outside the collapsible source details.
+function renderWarnings(message, warnings) {
+    if (!warnings.length) {
+        return;
+    }
+    const panel = document.createElement("section");
+    panel.className = "quality-notices";
+    panel.setAttribute("aria-label", "Data quality and interpretation notices");
+    const title = document.createElement("h3");
+    title.textContent = "Before interpreting these results";
+    panel.appendChild(title);
+    const list = document.createElement("ul");
+    for (const warning of warnings) {
+        const item = document.createElement("li");
+        item.className = "quality-notice";
+        if (warning.severity === "info") {
+            item.classList.add("quality-info");
+        }
+        const text = document.createElement("strong");
+        let label = "";
+        if (warning.facility_name) {
+            label = warning.facility_name + ": ";
+        }
+        text.textContent = label + warning.message;
+        item.appendChild(text);
+        if (warning.action) {
+            const action = document.createElement("p");
+            action.textContent = warning.action;
+            item.appendChild(action);
+        }
+        list.appendChild(item);
+    }
+    panel.appendChild(list);
+    message.insertBefore(panel, message.querySelector(".message-content"));
 }

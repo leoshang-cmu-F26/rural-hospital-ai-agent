@@ -2,6 +2,7 @@ const fs = require('fs'), vm = require('vm'), assert = require('assert');
 class Element {
     constructor(tag) { this.tagName=tag; this.children=[]; this.attributes={}; this._text=''; this.value=''; this.disabled=false; this.hidden=false; this.className=''; this.classList={add:(name)=>{this.className+=' '+name}}; }
     appendChild(child) { this.children.push(child); return child; }
+    insertBefore(child, before) { const index=this.children.indexOf(before); if(index<0) return this.appendChild(child); this.children.splice(index,0,child); return child; }
     append(...children) { children.forEach(c=>this.appendChild(c)); }
     set textContent(value) { this._text=String(value); this.children=[]; }
     get textContent() { return this._text+this.children.map(c=>c.textContent).join(''); }
@@ -23,6 +24,7 @@ const context={document:{createElement:tag=>new Element(tag),createTextNode:text
             ? [{type:'context',current_facility:pair[1]}, {type:'result',response:'Selected Reedsburg'}]
             : message === 'Fresh chat' ? [{type:'result',response:'Which hospitals?'}]
             : [{type:'comparison_context',comparison_facilities:pair},
+               {type:'warnings',warnings:[{code:'non_rural_hospital',facility_id:'521351',facility_name:'Reedsburg',message:'CMS classifies this hospital as urban in 2024. <script>unsafe</script>',action:'Continue analysis; do not call it rural.'}]},
                {type:'evidence',sections:[
                   {key:'520109:financials',label:'Mile Bluff — Financials',status:'available',source:'CMS'},
                   {key:'521351:financials',label:'Reedsburg — Financials',status:'available',source:'CMS'}]},
@@ -45,6 +47,8 @@ assert(context.output.textContent.includes('<img'));
     await vm.runInContext('sendMessage()',context);
     assert(nodes['current-facility'].textContent.includes('Mile Bluff'));
     assert(nodes['current-facility'].textContent.includes('Reedsburg'));
+    assert(nodes['chat-box'].textContent.includes('CMS classifies this hospital as urban'));
+    assert.equal(find(nodes['chat-box'],n=>n.tagName==='script').length,0);
     for(let i=0;i<4;i++) {
         nodes['message-input'].value='Compare their financial trends';
         await vm.runInContext('sendMessage()',context);

@@ -214,7 +214,14 @@ def compare_hospitals(
             first = chosen[0].get('indicators', {}).get(metric)
             second = chosen[1].get('indicators', {}).get(metric)
 
-            if first is not None and second is not None:
+            blocked = False
+            for value in chosen:
+                if metric in value.get('indicators', {}).get('blocked_metrics', []):
+                    blocked = True
+                for alert in value.get('indicators', {}).get('quality_warnings', []):
+                    if alert.get('code') == 'fiscal_period_review':
+                        blocked = True
+            if not blocked and first is not None and second is not None:
                 differences.append({
                     'metric': metric,
                     'first': first,
@@ -271,6 +278,9 @@ def compare_hospitals(
         for key in ('financials', 'financial_trend', 'healthcare_access'):
             if not report[key]['available']:
                 gaps.append(f'{ccn}: {key} unavailable')
+
+        if chosen[index].get('indicators', {}).get('quality_warnings'):
+            gaps.append(f'{ccn}: financial source fields require review; affected differences are withheld')
 
         if chosen[index].get('indicators', {}).get('missing_fields'):
             gaps.append(f'{ccn}: some financial indicators are missing')

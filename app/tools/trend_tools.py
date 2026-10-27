@@ -8,6 +8,9 @@ and the agent tool.
 """
 
 from statistics import mean
+from datetime import datetime
+
+from app.services.data_quality_service import warning, rural_from_record
 
 from app.models.financial import (
     FinancialIndicators,
@@ -122,8 +125,31 @@ def summarize_indicator_trend(
     last_year, last_value = available[-1]
     change = round(last_value - first_value, 4)
 
+    # A net endpoint change must not hide direction reversals or invalid ratios.
+    alerts = []
+    signs = set()
+    for index in range(1, len(available)):
+        step = available[index][1] - available[index - 1][1]
+        if abs(step) >= STABLE_THRESHOLDS.get(indicator, 0):
+            if step > 0:
+                signs.add(1)
+            elif step < 0:
+                signs.add(-1)
+    direction = classify_direction(indicator, change)
+    if len(signs) > 1:
+        direction = 'mixed'
+        alerts.append(warning('trend_reversals', f'{indicator} changes direction within the observed years; an endpoint label would hide the fluctuation.',
+                              'Describe the observed sequence and endpoint change separately; do not claim sustained improvement or deterioration.', metric=indicator))
+    for item in ordered:
+        if indicator in item.blocked_metrics:
+            direction = 'requires_review'
+            change = None
+            alerts.append(warning('trend_invalid_metric', f'{indicator} contains a year with an invalid denominator or utilization scope.',
+                                  'Inspect source records; no directional conclusion or endpoint difference is supported.', metric=indicator))
+            break
     return IndicatorTrend(
         indicator=indicator,
+        quality_warnings=alerts,
         values_by_year=values_by_year,
         years_available=len(available),
         first_year=first_year,
@@ -131,7 +157,7 @@ def summarize_indicator_trend(
         last_year=last_year,
         last_value=last_value,
         change=change,
-        direction=classify_direction(indicator, change),
+        direction=direction,
     )
 
 
@@ -165,22 +191,26 @@ def build_financial_trend(
         is_rural = rural_source.is_rural
 
     # 3. Collect observed years, operating losses and balance-sheet signals.
-    negative_margin_flags = []
     margins = []
     years_with_data = []
     negative_margin_years = []
     liabilities_exceeding_assets_years = []
     for item in ordered:
-        is_negative = item.operating_margin is not None and item.operating_margin < 0
-        negative_margin_flags.append(is_negative)
-        if item.operating_margin is not None:
+        is_negative = item.operating_margin is not None and item.operating_margin < 0 and 'operating_margin' not in item.blocked_metrics
+        if item.operating_margin is not None and 'operating_margin' not in item.blocked_metrics:
             margins.append(item.operating_margin)
         if item.report_year is not None:
             years_with_data.append(item.report_year)
             if is_negative:
                 negative_margin_years.append(item.report_year)
-            if item.liability_to_asset_ratio is not None and item.liability_to_asset_ratio > 100:
+            if 'liability_to_asset_ratio' not in item.blocked_metrics and item.liability_to_asset_ratio is not None and item.liability_to_asset_ratio > 100:
                 liabilities_exceeding_assets_years.append(item.report_year)
+
+    # Missing requested years break a consecutive-loss sequence.
+    negative_margin_flags = []
+    observed_losses = set(negative_margin_years)
+    for requested_year in sorted(years_requested):
+        negative_margin_flags.append(requested_year in observed_losses)
 
     # 4. Summarize each metric from actual endpoints and average known margins.
     indicator_trends = {}
@@ -189,6 +219,36 @@ def build_financial_trend(
     average_margin = None
     if margins:
         average_margin = round(mean(margins), 2)
+
+    # Review dates, gaps and source warnings before describing a multi-year trend.
+    quality_warnings = []
+    for item in ordered:
+        quality_warnings.extend(item.quality_warnings)
+    for summary in indicator_trends.values():
+        quality_warnings.extend(summary.quality_warnings)
+    if years_without_report or years_unavailable:
+        quality_warnings.append(warning('trend_year_gaps', 'Some requested years have no matching report or could not be retrieved.',
+                                       'Describe observed years only; gaps do not establish uninterrupted deterioration or improvement.'))
+    for index, item in enumerate(ordered):
+        if index == 0:
+            continue
+        previous = ordered[index - 1]
+        try:
+            begin = datetime.fromisoformat(item.fiscal_year_begin)
+            end = datetime.fromisoformat(item.fiscal_year_end)
+            prior_begin = datetime.fromisoformat(previous.fiscal_year_begin)
+            prior_end = datetime.fromisoformat(previous.fiscal_year_end)
+            if begin <= prior_end or abs((end - begin).days - (prior_end - prior_begin).days) > 31:
+                raise ValueError('Overlapping or unequal periods')
+        except (ValueError, TypeError):
+            quality_warnings.append(warning('trend_fiscal_periods', 'Trend fiscal periods overlap, differ materially in length, or have missing/invalid dates.',
+                                           'Review fiscal dates before comparing. Direction labels are withheld pending review.'))
+            for summary in indicator_trends.values():
+                summary.direction = 'requires_review'
+                summary.change = None
+            break
+    _, rural_alerts = rural_from_record(rural_source)
+    quality_warnings.extend(rural_alerts)
 
     # 5. Preserve missing-report and unavailable-dataset years separately.
     return FinancialTrend(
@@ -206,6 +266,7 @@ def build_financial_trend(
         consecutive_negative_operating_margin_years=count_trailing_true(negative_margin_flags),
         years_with_liabilities_exceeding_assets=liabilities_exceeding_assets_years,
         average_operating_margin=average_margin,
+        quality_warnings=quality_warnings,
     )
 
 # endregion

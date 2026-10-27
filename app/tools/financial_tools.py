@@ -1,5 +1,7 @@
 """Deterministic financial indicators with explicit missing-data handling."""
 
+from math import isfinite
+
 from app.models.financial import (
     HospitalFinancialRecord,
     FinancialIndicators,
@@ -25,6 +27,8 @@ def calculate_occupancy_rate(
     if (
         record.total_days is None
         or record.total_bed_days_available is None
+        or not isfinite(record.total_days)
+        or not isfinite(record.total_bed_days_available)
         or record.total_bed_days_available == 0
     ):
         return None
@@ -43,6 +47,8 @@ def calculate_operating_margin(
     if (
         record.net_income_from_service is None
         or record.net_patient_revenue is None
+        or not isfinite(record.net_income_from_service)
+        or not isfinite(record.net_patient_revenue)
         or record.net_patient_revenue == 0
     ):
         return None
@@ -61,6 +67,8 @@ def calculate_liability_to_asset_ratio(
     if (
         record.total_liabilities is None
         or record.total_assets is None
+        or not isfinite(record.total_liabilities)
+        or not isfinite(record.total_assets)
         or record.total_assets == 0
     ):
         return None
@@ -101,10 +109,16 @@ def calculate_financial_indicators(
 ) -> FinancialIndicators:
 
     """Calculate each supported indicator and retain its missing-input fields."""
+    from app.services.data_quality_service import financial_quality
+    quality_warnings, blocked_metrics = financial_quality(record)
     missing_fields = []
     for field in INDICATOR_INPUT_FIELDS:
         if getattr(record, field) is None:
             missing_fields.append(field)
+
+    cost_ratio = record.cost_to_charge_ratio
+    if cost_ratio is not None and not isfinite(cost_ratio):
+        cost_ratio = None
 
     return FinancialIndicators(
         facility_id=record.facility_id,
@@ -124,7 +138,9 @@ def calculate_financial_indicators(
         liability_to_asset_ratio=
             calculate_liability_to_asset_ratio(record),
 
-        cost_to_charge_ratio=record.cost_to_charge_ratio,
+        cost_to_charge_ratio=cost_ratio,
 
         missing_fields=missing_fields,
+        blocked_metrics=blocked_metrics,
+        quality_warnings=quality_warnings,
     )

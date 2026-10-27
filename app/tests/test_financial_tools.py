@@ -43,6 +43,8 @@ def make_indicators(
         facility_id="510002",
         hospital_name="TEST HOSPITAL",
         report_year=year,
+        fiscal_year_begin=f"{year}-01-01",
+        fiscal_year_end=f"{year}-12-31",
         rural_versus_urban="R" if is_rural else None,
         is_rural=is_rural,
         operating_margin=margin,

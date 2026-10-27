@@ -1,6 +1,10 @@
 # Rural Hospital Financial Distress & Healthcare Access Investigation AI Agent
 
-An AI Agent prototype for investigating rural hospital financial condition using public CMS data. This is the class project for 49-797 at CMU-SV.
+An AI Agent prototype for investigating hospital finances, financial trends, and healthcare-access context using public CMS, Census, and HRSA data. This is the class project for 49-797 at CMU-SV.
+
+**[Try the live Agent demo](https://rural-hospital-ai-agent.onrender.com/demo/)**
+
+The chat frontend is served at `/demo/`; the root URL shows the API status. The hosted service may take time to wake up after inactivity. Repository updates appear in the hosted demo only after deployment. Initial statewide analyses may take several minutes while source data and coordinates are retrieved.
 
 The prototype retrieves hospital and cost-report data from CMS, calculates deterministic financial and operational indicators for a single year and across multiple years, and uses an LLM-powered agent to generate evidence-based natural-language assessments.
 
@@ -15,8 +19,15 @@ The system currently supports:
 - Multi-year financial trend analysis with deterministic trend directions and distress signals
 - Same-county, same-ZIP, and same-state hospital comparison
 - County-level healthcare-access analysis combining CMS hospital comparisons, Census demographics, and HRSA Primary Care HPSA designations
+- Full hospital investigations and two-hospital comparisons with report-year and fiscal-period alignment checks
+- State, county, and ZIP hospital-cohort access analysis, with an optional rural-only filter
+- Dated non-rural hospital reminders and visible data-quality notices for unreliable ratios, fiscal periods, missing evidence, and trend reversals
+- Address-based access analysis for facilities with user-confirmed physical addresses
+- Historical CMS/IHS tribal-facility directory lookup, with institution types and PDF source pages
+- Local methodology RAG over reviewed CMS, Census, and HRSA document snapshots using SQLite FTS5/BM25
+- Bounded conversation context, streamed progress, source/coverage cards, and safe Markdown rendering
 - LLM tool calling through a LangGraph/LangChain agent
-- FastAPI endpoints and a minimal chat UI served at `/demo`
+- FastAPI endpoints and a chat UI served at `/demo/`
 
 ## Architecture
 
@@ -35,15 +46,24 @@ OpenAI LLM  (intent, tool selection, explanation)
   v
 Agent Tools
   |
-  +--> search_hospital / get_hospital_by_ccn
-  |      `--> CMS Hospital General Information
+  +--> resolve_facility
+  |      `--> Current CMS hospitals + historical tribal directory + rural context
   |
   +--> analyze_hospital_financials / analyze_financial_trend
   |      `--> CMS Hospital Provider Cost Report (2011 - latest)
   |             `--> dataset IDs discovered from https://data.cms.gov/data.json
   |
+  +--> investigate_hospital / compare_hospital_investigations
+  |      `--> Financials + trends + access, with data-quality checks
+  |
   +--> compare_hospitals_by_area / analyze_healthcare_access
-  |      `--> CMS Hospital General Information
+  |      `--> CMS hospitals + county evidence + same-state distance ranking
+  |
+  +--> analyze_area_healthcare_access / analyze_facility_access_by_address
+  |      `--> State/county/ZIP cohorts or user-confirmed address context
+  |
+  +--> search_methodology_documents
+  |      `--> Reviewed document snapshots + local SQLite FTS5/BM25 retrieval
   |
   `--> get_hospital_demographics / analyze_healthcare_access
          `--> U.S. Census Bureau ACS / HRSA GIS service
@@ -65,6 +85,8 @@ Natural-Language Response
 - FastAPI, Uvicorn, Pydantic
 - LangChain, LangGraph, OpenAI API
 - Requests, cachetools, python-dotenv
+- SQLite coordinate caching and regenerable directory/methodology indexes
+- HTML, CSS, JavaScript, and a safe DOM-based Markdown renderer
 - pytest (offline unit tests)
 - CMS, U.S. Census Bureau ACS, and HRSA public data APIs
 
@@ -193,7 +215,7 @@ python -m uvicorn app.main:app --reload
 - Swagger UI: http://127.0.0.1:8000/docs
 - Chat demo: http://127.0.0.1:8000/demo/
 
-On startup the app downloads the CMS catalog in the background so the first financial request is fast.
+On startup the app warms the CMS catalog in the background. This reduces later catalog lookup work but does not guarantee a fast first analysis.
 
 ## Main API Endpoints
 
@@ -235,7 +257,9 @@ Current indicators:
 | Liability-to-asset ratio (%) | total_liabilities / total_assets x 100 | Total Liabilities, Total Assets |
 | Cost-to-charge ratio | reported directly by CMS | Cost To Charge Ratio |
 
-Each indicator response also includes `report_year`, the fiscal period, `rural_versus_urban` (`R` / `U` as reported by CMS), and `is_rural`. If a required field is unavailable the indicator is `null` and the field is listed in `missing_fields`. Values are passed through as reported: some hospitals report negative fund balances or assets, so ratios can be negative or exceed 100%.
+Each indicator response also includes `report_year`, the fiscal period, `rural_versus_urban` (`R` / `U` in the supported structured data), and `is_rural`. Missing inputs appear in `missing_fields`; zero denominators are distinct from missing values. Negative assets or revenue may produce traceable signed ratios, but affected metrics appear in `blocked_metrics` and must not be interpreted conventionally or used for direct comparisons. Non-finite computed values become `null`. `quality_warnings` describe verification steps.
+
+An urban classification triggers a dated non-rural notice without refusing analysis. Unknown classification is neither rural nor urban; a cost-report classification does not establish current rural status under every geographic definition.
 
 ### Multi-year history and trend
 
@@ -266,6 +290,7 @@ Direction semantics:
 
 ```http
 POST /agent/chat
+POST /agent/chat/stream
 ```
 
 ```json
@@ -274,17 +299,26 @@ POST /agent/chat
 }
 ```
 
+The browser uses `/agent/chat/stream`, which emits newline-delimited JSON progress, warnings, evidence, context, and result/error events. It sends bounded recent history and compact active hospital/comparison identities. Refreshing or clearing chat resets browser-owned context; there is no persistent account-level conversation memory.
+
 ## Agent Tools
 
 | Tool | Purpose | Data source |
 |---|---|---|
-| `search_hospital` | Resolve a hospital name to CCN and basic information | Hospital General Information |
-| `get_hospital_by_ccn` | Basic information for a known CCN | Hospital General Information |
+| `resolve_facility` | Compact name/location or CCN resolution, current verification and rural context | CMS hospitals + historical directory + cost reports |
+| `investigate_hospital` | Full financial, trend and access investigation | CMS + Census + HRSA |
+| `compare_hospital_investigations` | Two hospitals with fiscal alignment checks | CMS + Census + HRSA |
 | `analyze_hospital_financials` | Single-year indicators (latest year or `year=`), including rural flag | Hospital Provider Cost Report |
 | `analyze_financial_trend` | Multi-year indicators, trend directions, distress signals | Hospital Provider Cost Report |
 | `compare_hospitals_by_area` | Other CMS-listed hospitals in the same county / ZIP / state | Hospital General Information |
 | `analyze_healthcare_access` | Same-county access proxy, county demographics, and Primary Care HPSA designations | CMS Hospital General Information + Census ACS + HRSA |
 | `get_hospital_demographics` | County population, population 65+, and percent 65+ | U.S. Census ACS 2024 5-Year |
+| `analyze_area_healthcare_access` | State/county/ZIP hospital cohorts, with optional rural filtering | CMS + Census + HRSA + cached coordinates |
+| `analyze_facility_access_by_address` | Access context at a user-confirmed full physical address | Census Geocoder + CMS + Census + HRSA |
+| `search_tribal_facility_directory` | Historical institution types, listed CCNs and source pages | CMS/IHS 2020 directory |
+| `search_methodology_documents` | Short cited passages explaining methods and limitations | Reviewed CMS, Census and HRSA snapshots |
+
+Legacy `search_hospital` and `get_hospital_by_ccn` wrappers remain for compatibility, but the agent registry uses `resolve_facility` instead.
 
 All numbers are computed in Python; the LLM is used for intent understanding, tool routing, and explanation only. The system prompt instructs the agent to cite the data source, state missing data explicitly, and avoid predicting closure or recovery from historical trends.
 
@@ -336,17 +370,13 @@ Current:
 
 HRSA designations may apply to a specific population group or service area; they should not automatically be interpreted as designating the entire county. Census and HRSA results are reported as unavailable if their data sources cannot be queried.
 
-## Planned Next Steps
+## Next Steps
 
-- Conversation memory so the agent can follow up on clarification questions (next sprint, P0)
-- Markdown rendering in the `/demo` chat UI (next sprint, P0)
-- Tool-error handling inside the agent loop and a CI workflow running `pytest` (next sprint, P0)
-- Additional indicators from the cost report (current ratio, cash on hand, charity care, bad debt)
-- Peer rural-hospital financial comparison
-- Distance- and travel-time-based healthcare-access analysis
-- Additional Census variables and rural healthcare / geographic-access datasets
-- RAG-based retrieval from CMS methodology documents
-- Trend visualization
+- Evaluate live model routing, citation faithfulness, usability, latency, and cost
+- Improve deployment authentication, rate limiting, concurrency controls, and timeout handling
+- Collect feedback from public health and rural-health users
+- Expand methodology coverage and retrieval evaluation
+- Explore trend visualization, driving-time evidence, and current tribal-facility sources
 
 ## Security
 
@@ -357,11 +387,13 @@ Never commit secrets such as API keys. The following remain ignored by Git:
 .venv/
 __pycache__/
 .pytest_cache/
+data/*.db
+data/*.db-*
 ```
 
 ## Status
 
-Working end-to-end AI Agent prototype with CMS retrieval, runtime dataset discovery, single-year and multi-year deterministic financial analytics, Census demographics, HRSA Primary Care HPSA evidence, missing-data handling, LLM tool calling, FastAPI integration, and a minimal chat UI.
+Working investigation prototype with structured public-data retrieval, deterministic analytics, bounded chat context, state/county/ZIP access analysis, visible interpretation notices, and a first local lexical RAG implementation. Offline regression checks do not establish live model reliability or upstream availability. This research/learning project does not predict closure or replace clinical or financial decision-making.
 
 
 ## Location-aware search and full investigation
@@ -458,9 +490,9 @@ To reproduce extraction, install `pdfplumber` in a separate development environm
 and run `python scripts/extract_tribal_directory.py --pdf data/reference/ihs_cms_tribal_2020.pdf --output data/reference/ihs_cms_tribal_2020.json`.
 
 
-### State and county healthcare-access analysis
+## State, county and ZIP healthcare-access analysis
 
-`analyze_area_healthcare_access(state, county=None, rural_only=True, year=None)`
+`analyze_area_healthcare_access(state, county=None, rural_only=True, year=None, zip_code=None)`
 retrieves all current CMS-listed hospital targets in the requested geography.
 A county always needs its state. For rural-only requests, eligibility uses the
 CMS cost report `Rural Versus Urban` field (`R` / `U`) in one dataset year:
@@ -501,3 +533,55 @@ mailing locations; it does not calculate a radius, ZIP population coverage or
 Census ZCTA estimates. Neighbors still include the entire state. Demographics
 and HPSA remain county-level and may cover several represented counties in one
 ZIP. No matching hospital does not establish that nearby care is absent.
+
+
+## Data-quality notices and methodology RAG
+
+Hospital analyses now include dated rural/urban context and visible interpretation
+notices. Urban hospitals may still be analyzed; unknown classification is never
+assumed urban. Invalid ratio denominators, nonannual/overlapping fiscal periods,
+trend reversals and missing access evidence are surfaced independently of model
+prose. Affected comparison differences/directional labels are withheld.
+
+`search_methodology_documents` retrieves short passages from reviewed CMS, Census
+and HRSA snapshots using local SQLite FTS5/BM25. Citations include source URLs,
+retrieval dates and dictionary PDF pages. This is lexical RAG without embedding
+API calls; hospital numbers still come from deterministic structured tools.
+See [data-quality rules, corpus provenance and test prompts](docs/data_quality_and_rag.md).
+
+The initial corpus covers CMS cost-report provenance, ten CMS dictionary field definitions with PDF page citations, HRSA HPSA types, and Census ACS uncertainty/statistical comparisons. Retrieval dates are not publication dates or proof of current policy. HRSA uses an explicitly recorded reviewed excerpt where direct download returned 403. Unsupported questions must be disclosed rather than answered with invented citations.
+
+Runtime retrieval returns up to three short passages by default and makes no embedding API calls. Normal answer-generation tokens still apply. Hospital identities and numbers continue to come from structured tools. The historical tribal directory is a separate structured lookup, not a tribal financial-report RAG corpus.
+
+Try:
+
+```text
+What is the difference between a geographic HPSA and a population HPSA? Cite your sources.
+```
+
+```text
+How does CMS define Net Patient Revenue? Cite the dictionary page.
+```
+
+## Runtime storage and deployment
+
+Geocoding checks the in-memory TTL cache, then `data/hospital_coordinates.db`, then Census Geocoder. Successful coordinates persist across restarts only when the database file is preserved. `data/tribal_facilities.db` and `data/methodology.db` are regenerable local indexes built from tracked snapshots under `data/reference/`. Runtime databases are ignored by Git; normal app execution does not require PDF extraction libraries.
+
+FastAPI serves both frontend and backend. For a Python web service, install with `pip install -r requirements.txt` and start with:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+```
+
+Configure secrets in the hosting platform, use `/health` for health checks, and keep reference snapshots available at runtime. Ephemeral hosting may discard caches on restart/redeploy; preserving them requires a suitable persistent-storage setup. Review access protection and usage controls before broader public use.
+
+## Additional offline regression checks
+
+The default `pytest.ini` collects `test_*.py`; additional offline suites named `*_test.py` require explicit paths:
+
+```bash
+python -m pytest app/tests/area_access_test.py app/tests/data_quality_test.py app/tests/methodology_test.py app/tests/comparison_service_test.py app/tests/hospital_upgrade_test.py app/tests/facility_resolution_test.py app/tests/tribal_directory_test.py app/tests/chat_stream_test.py -q
+node app/tests/frontend_comparison_test.cjs frontend
+```
+
+Live smoke scripts remain separate and may incur model API costs. Do not run every `*_test.py` indiscriminately as an offline suite.

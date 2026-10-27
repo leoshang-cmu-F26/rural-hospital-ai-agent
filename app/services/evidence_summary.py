@@ -13,6 +13,18 @@ def evidence_summary(output):
             return []
     if not isinstance(raw, dict):
         return []
+    if raw.get('report_kind') == 'methodology_retrieval':
+        cards = []
+        for passage in raw.get('passages', []):
+            cards.append({'key': passage['passage_id'], 'label': 'Methodology: ' + passage['title'],
+                          'status': 'available', 'source': passage['url'],
+                          'period': passage['retrieved_at'][:10],
+                          'details': 'Document snapshot retrieval date; publication date may be unknown. Not hospital-specific evidence.'})
+        if not cards:
+            cards.append({'key': 'methodology', 'label': 'Methodology retrieval',
+                          'status': 'unavailable', 'source': 'Local reviewed corpus',
+                          'details': raw.get('error') or 'No matching supporting passage found.'})
+        return cards
     # Area coverage is a separate card, never a single-hospital evidence summary.
     if raw.get('report_kind') == 'area_healthcare_access':
         coverage = raw.get('coverage', {})
@@ -77,6 +89,9 @@ def evidence_summary(output):
             return
         available = data.get('available', 'error' not in data)
         gaps = []
+        alerts = data.get('quality_warnings', []) + data.get('indicators', {}).get('quality_warnings', [])
+        for alert in alerts:
+            gaps.append(alert['message'])
         missing = data.get('missing_fields') or data.get('indicators', {}).get('missing_fields')
         if missing:
             field_names = []
