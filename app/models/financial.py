@@ -16,6 +16,8 @@ class HospitalFinancialRecord(BaseModel):
     # inside that dataset may not match the calendar year.
     report_year: int | None = None
 
+    source_provenance: dict | None = None
+
     rural_versus_urban: str | None = None
     number_of_beds: float | None = None
     total_days: float | None = None
@@ -42,6 +44,7 @@ class FinancialIndicators(BaseModel):
     hospital_name: str
 
     report_year: int | None = None
+    source_provenance: dict | None = None
     fiscal_year_begin: str | None = None
     fiscal_year_end: str | None = None
 

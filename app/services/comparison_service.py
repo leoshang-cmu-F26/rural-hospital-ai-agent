@@ -77,9 +77,7 @@ def compare_hospitals(
 
         for index, ccn in enumerate(ids):
             hospital_name = targets[index]['facility_name']
-            report_progress(
-                f'Checking report year {candidate} for {hospital_name}…'
-            )
+            report_progress(f'Checking report year {candidate} for {hospital_name}…')
 
             data = _section(
                 financial_lookup,
@@ -115,10 +113,12 @@ def compare_hospitals(
             if not data.get('available'):
                 both_reports_available = False
 
-        checked.append({
-            'year': candidate,
-            'hospitals': hospital_checks,
-        })
+        checked.append(
+            {
+                'year': candidate,
+                'hospitals': hospital_checks,
+            }
+        )
 
         if both_reports_available:
             selected_year = candidate
@@ -134,10 +134,12 @@ def compare_hospitals(
             if value:
                 chosen.append(value)
             else:
-                chosen.append({
-                    'available': False,
-                    'error': 'No financial report retrieved in the checked years.',
-                })
+                chosen.append(
+                    {
+                        'available': False,
+                        'error': 'No financial report retrieved in the checked years.',
+                    }
+                )
 
     # 6. A common dataset year is not enough: check actual fiscal start/end dates.
     # None means dates are incomplete; False means both periods exist but differ.
@@ -179,9 +181,7 @@ def compare_hospitals(
             'Separate reports are context only; no financial differences are calculated.'
         )
     elif year is not None:
-        alignment_note = (
-            'Requested financial dataset year; verify both fiscal periods.'
-        )
+        alignment_note = 'Requested financial dataset year; verify both fiscal periods.'
     else:
         alignment_note = (
             'Latest successfully retrieved common dataset year; '
@@ -222,22 +222,22 @@ def compare_hospitals(
                     if alert.get('code') == 'fiscal_period_review':
                         blocked = True
             if not blocked and first is not None and second is not None:
-                differences.append({
-                    'metric': metric,
-                    'first': first,
-                    'second': second,
-                    'second_minus_first': round(second - first, 6),
-                    'unit': unit,
-                })
+                differences.append(
+                    {
+                        'metric': metric,
+                        'first': first,
+                        'second': second,
+                        'second_minus_first': round(second - first, 6),
+                        'unit': unit,
+                    }
+                )
 
     # 10. Record alignment gaps before adding each hospital's evidence gaps.
     reports = []
     gaps = []
 
     if selected_year is None:
-        gaps.append(
-            'No retrieved common financial report year; financial results are not aligned.'
-        )
+        gaps.append('No retrieved common financial report year; financial results are not aligned.')
 
     if same_fiscal is not True:
         gaps.append(
@@ -280,7 +280,9 @@ def compare_hospitals(
                 gaps.append(f'{ccn}: {key} unavailable')
 
         if chosen[index].get('indicators', {}).get('quality_warnings'):
-            gaps.append(f'{ccn}: financial source fields require review; affected differences are withheld')
+            gaps.append(
+                f'{ccn}: financial source fields require review; affected differences are withheld'
+            )
 
         if chosen[index].get('indicators', {}).get('missing_fields'):
             gaps.append(f'{ccn}: some financial indicators are missing')
@@ -299,9 +301,7 @@ def compare_hospitals(
                     gaps.append(f'{ccn}: {key} unavailable')
 
             if access.get('distance_analysis', {}).get('skipped_geocoding_count'):
-                gaps.append(
-                    f'{ccn}: hospital distance ranking excludes unmatched coordinates'
-                )
+                gaps.append(f'{ccn}: hospital distance ranking excludes unmatched coordinates')
 
     # 12. Return the ordered evidence, calculated deltas, and explicit limits.
     # A partial status signals data gaps, not a hospital quality or risk rating.

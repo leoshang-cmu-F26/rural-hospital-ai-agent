@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.services.cost_report_service import get_cost_report_datasets
-
+from app.services.financial_store import data_mode
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,8 @@ def _warm_cost_report_catalog() -> None:
     Download the CMS catalog in the background at startup so the
     first financial request does not pay for the 17 MB download.
     """
+    if data_mode() == 'database_only':
+        return
     try:
         get_cost_report_datasets()
     except Exception:  # noqa: BLE001 - best effort only

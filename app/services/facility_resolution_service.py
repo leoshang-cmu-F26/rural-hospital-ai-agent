@@ -9,9 +9,17 @@ from app.services.tribal_directory_service import search_tribal_facilities
 def _compact_hospital(hospital):
     """Keep only identity, location and type needed by subsequent tools."""
     result = {}
-    for field in ('facility_id', 'facility_name', 'citytown', 'state',
-                  'countyparish', 'hospital_type'):
+    for field in (
+        'facility_id',
+        'facility_name',
+        'citytown',
+        'state',
+        'countyparish',
+        'hospital_type',
+    ):
         result[field] = getattr(hospital, field)
+    if hospital.source_provenance:
+        result["source_provenance"] = hospital.source_provenance
     return result
 
 
@@ -78,12 +86,19 @@ def resolve_facility_identity(name=None, state=None, county=None, facility_id=No
         result['historical_match_count'] = historical['count']
         result['historical_source_date'] = historical['source_created_date']
         for entry in historical['facilities']:
-            result['historical_matches'].append({
-                'facility_name': entry['facility_name'],
-                'facility_type': entry['facility_type'],
-                'city': entry['city'], 'state': entry['state'],
-                'citation_url': entry['citation_url'],
-            })
-        result['historical_note'] = 'Historical only; current identity/type unverified. County filter was not applied to historical entries. No hospital financial CCN resolved.'
-    result['next_step'] = 'Clarify name/location, or offer access analysis using a user-confirmed full address. No match does not establish nonexistence.'
+            result['historical_matches'].append(
+                {
+                    'facility_name': entry['facility_name'],
+                    'facility_type': entry['facility_type'],
+                    'city': entry['city'],
+                    'state': entry['state'],
+                    'citation_url': entry['citation_url'],
+                }
+            )
+        result['historical_note'] = (
+            'Historical only; current identity/type unverified. County filter was not applied to historical entries. No hospital financial CCN resolved.'
+        )
+    result['next_step'] = (
+        'Clarify name/location, or offer access analysis using a user-confirmed full address. No match does not establish nonexistence.'
+    )
     return result

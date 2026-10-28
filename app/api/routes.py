@@ -34,6 +34,7 @@ from app.utils.state_utils import normalize_state
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
 def year_query(
     description: str = "CMS cost-report dataset year",
 ):
@@ -51,20 +52,17 @@ def year_query(
 
 # region Hospital API
 
+
 @router.get("/")
 def root():
     """Describe the running API without invoking the model or external services."""
-    return {
-        "message": "Rural Hospital AI Agent API is running"
-    }
+    return {"message": "Rural Hospital AI Agent API is running"}
 
 
 @router.get("/health")
 def health_check():
     """Return a lightweight application health response."""
-    return {
-        "status": "healthy"
-    }
+    return {"status": "healthy"}
 
 
 @router.get("/hospitals")
@@ -87,10 +85,7 @@ def get_hospitals(state: str):
         )
 
 
-@router.get(
-    "/hospitals/search",
-    response_model=list[Hospital]
-)
+@router.get("/hospitals/search", response_model=list[Hospital])
 def search_hospitals(name: str, state: str | None = None, county: str | None = None):
     """Search CMS hospital names while preserving supplied state and county filters."""
     try:
@@ -99,26 +94,22 @@ def search_hospitals(name: str, state: str | None = None, county: str | None = N
         raise HTTPException(status_code=400, detail=str(error))
 
 
-@router.get(
-    "/hospitals/{facility_id}",
-    response_model=Hospital
-)
+@router.get("/hospitals/{facility_id}", response_model=Hospital)
 def get_hospital(facility_id: str):
     """Return the requested CMS hospital or an explicit not-found response."""
     hospital = get_hospital_by_id(facility_id)
 
     if hospital is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Hospital not found"
-        )
+        raise HTTPException(status_code=404, detail="Hospital not found")
 
     return hospital
+
 
 # endregion
 
 
 # region Financial API
+
 
 def _load_financial_record(
     facility_id: str,
@@ -182,7 +173,7 @@ def list_cost_report_datasets():
     datasets = get_cost_report_datasets()
 
     dataset_rows = {}
-    for (year, dataset_id) in sorted(datasets.items()):
+    for year, dataset_id in sorted(datasets.items()):
         dataset_rows[str(year)] = dataset_id
     return {
         "years": sorted(datasets),
@@ -256,9 +247,7 @@ def get_hospital_indicators(
     year: int | None = year_query(),
 ):
     """Compute indicators from the selected source report."""
-    return calculate_financial_indicators(
-        _load_financial_record(facility_id, year)
-    )
+    return calculate_financial_indicators(_load_financial_record(facility_id, year))
 
 
 @router.get(
@@ -279,14 +268,13 @@ def get_hospital_financial_trend(
 
     if not history.records:
         unavailable_years = {}
-        for (year, reason) in history.years_unavailable.items():
+        for year, reason in history.years_unavailable.items():
             unavailable_years[str(year)] = reason
         raise HTTPException(
             status_code=404,
             detail={
                 "message": (
-                    "No cost report data found for this hospital "
-                    "in the requested years"
+                    "No cost report data found for this hospital " "in the requested years"
                 ),
                 "years_requested": history.years_requested,
                 "years_without_report": history.years_without_report,
@@ -306,10 +294,12 @@ def get_hospital_financial_trend(
         years_unavailable=history.years_unavailable,
     )
 
+
 # endregion
 
 
 # region Agent API
+
 
 @router.post(
     "/agent/chat",
@@ -345,14 +335,12 @@ def chat_with_agent(request: AgentRequest):
         raise HTTPException(
             status_code=502,
             detail=(
-                "The AI agent could not complete the request: "
-                f"{type(error).__name__}: {error}"
+                "The AI agent could not complete the request: " f"{type(error).__name__}: {error}"
             ),
         )
 
-    return AgentResponse(
-        response=response
-    )
+    return AgentResponse(response=response)
+
 
 # endregion
 

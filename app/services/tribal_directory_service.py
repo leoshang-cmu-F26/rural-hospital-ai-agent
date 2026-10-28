@@ -1,4 +1,5 @@
 """Search a dated CMS/IHS reference directory, not a live hospital registry."""
+
 from contextlib import closing
 from pathlib import Path
 from threading import Lock
@@ -55,24 +56,40 @@ def initialize_tribal_directory():
                     normalized_city TEXT NOT NULL,
                     normalized_type TEXT NOT NULL
                 )''')
-                connection.execute('CREATE INDEX IF NOT EXISTS tribal_facilities_state ON tribal_facilities(state)')
-                old = connection.execute("SELECT value FROM directory_metadata WHERE key = 'seed_sha256'").fetchone()
+                connection.execute(
+                    'CREATE INDEX IF NOT EXISTS tribal_facilities_state ON tribal_facilities(state)'
+                )
+                old = connection.execute(
+                    "SELECT value FROM directory_metadata WHERE key = 'seed_sha256'"
+                ).fetchone()
                 if old is not None and old[0] == fingerprint:
                     return document
 
                 # 3. Preserve one source row and its full list of CCNs, including zeros.
                 connection.execute('DELETE FROM tribal_facilities')
                 for record in document['records']:
-                    connection.execute('''INSERT INTO tribal_facilities VALUES (
+                    connection.execute(
+                        '''INSERT INTO tribal_facilities VALUES (
                         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                    )''', (
-                        record['record_id'], record['facility_name'], record['facility_type'],
-                        json.dumps(record['ccns']), record['city'], record['state'], record['source_page'],
-                        _normalize_text(record['facility_name']), _normalize_text(record['city']),
-                        _normalize_text(record['facility_type']),
-                    ))
-                connection.execute('''INSERT INTO directory_metadata(key, value)
-                    VALUES ('seed_sha256', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value''', (fingerprint,))
+                    )''',
+                        (
+                            record['record_id'],
+                            record['facility_name'],
+                            record['facility_type'],
+                            json.dumps(record['ccns']),
+                            record['city'],
+                            record['state'],
+                            record['source_page'],
+                            _normalize_text(record['facility_name']),
+                            _normalize_text(record['city']),
+                            _normalize_text(record['facility_type']),
+                        ),
+                    )
+                connection.execute(
+                    '''INSERT INTO directory_metadata(key, value)
+                    VALUES ('seed_sha256', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value''',
+                    (fingerprint,),
+                )
     return document
 
 
@@ -86,7 +103,11 @@ def search_tribal_facilities(name=None, state=None, city=None, facility_type=Non
     conditions = []
     parameters = []
     try:
-        for field, value in (('normalized_name', name), ('normalized_city', city), ('normalized_type', facility_type)):
+        for field, value in (
+            ('normalized_name', name),
+            ('normalized_city', city),
+            ('normalized_type', facility_type),
+        ):
             if value is None:
                 continue
             if not isinstance(value, str):
@@ -108,28 +129,42 @@ def search_tribal_facilities(name=None, state=None, city=None, facility_type=Non
     where = ' AND '.join(conditions)
     with closing(sqlite3.connect(TRIBAL_DIRECTORY_DB_PATH, timeout=10)) as connection:
         connection.row_factory = sqlite3.Row
-        total = connection.execute('SELECT COUNT(*) FROM tribal_facilities WHERE ' + where, parameters).fetchone()[0]
-        rows = connection.execute('SELECT * FROM tribal_facilities WHERE ' + where +
-            ' ORDER BY facility_name, state, record_id LIMIT ?', parameters + [limit]).fetchall()
+        total = connection.execute(
+            'SELECT COUNT(*) FROM tribal_facilities WHERE ' + where, parameters
+        ).fetchone()[0]
+        rows = connection.execute(
+            'SELECT * FROM tribal_facilities WHERE '
+            + where
+            + ' ORDER BY facility_name, state, record_id LIMIT ?',
+            parameters + [limit],
+        ).fetchall()
 
     # 3. Expose listed identifiers as historical data, never as an active target CCN.
     facilities = []
     for row in rows:
-        facilities.append({
-            'record_id': row['record_id'],
-            'facility_name': row['facility_name'], 'facility_type': row['facility_type'],
-            'listed_ccns': json.loads(row['ccns_json']), 'city': row['city'], 'state': row['state'],
-            'listed_as_hospital': row['facility_type'] == 'Hospital',
-            'current_status_verified': False,
-            'source_page': row['source_page'],
-            'citation_url': document['source_url'] + '#page=' + str(row['source_page']),
-        })
+        facilities.append(
+            {
+                'record_id': row['record_id'],
+                'facility_name': row['facility_name'],
+                'facility_type': row['facility_type'],
+                'listed_ccns': json.loads(row['ccns_json']),
+                'city': row['city'],
+                'state': row['state'],
+                'listed_as_hospital': row['facility_type'] == 'Hospital',
+                'current_status_verified': False,
+                'source_page': row['source_page'],
+                'citation_url': document['source_url'] + '#page=' + str(row['source_page']),
+            }
+        )
     return {
         'directory_kind': 'historical_tribal_facilities',
         'filters': {'name': name, 'state': state, 'city': city, 'facility_type': facility_type},
-        'count': total, 'returned_count': len(facilities), 'truncated': total > len(facilities),
+        'count': total,
+        'returned_count': len(facilities),
+        'truncated': total > len(facilities),
         'facilities': facilities,
-        'source': document['source_title'], 'source_url': document['source_url'],
+        'source': document['source_title'],
+        'source_url': document['source_url'],
         'source_created_date': document['source_created_date'],
         'historical_snapshot': True,
         'limitations': [

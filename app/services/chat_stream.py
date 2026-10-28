@@ -1,4 +1,5 @@
 """Stream progress and a final answer from a synchronous agent run."""
+
 import json
 import logging
 from queue import Queue, Empty
@@ -9,7 +10,9 @@ from app.services.agent_progress import _sink, ToolProgressHandler
 logger = logging.getLogger(__name__)
 
 
-def stream_agent_events(message, runner, history=None, current_facility=None, comparison_facilities=None):
+def stream_agent_events(
+    message, runner, history=None, current_facility=None, comparison_facilities=None
+):
     """Bridge a synchronous worker to newline-delimited events with request isolation."""
     # 1. Keep each chat request in its own queue and disconnect flag.
     events = Queue()
@@ -39,7 +42,12 @@ def stream_agent_events(message, runner, history=None, current_facility=None, co
             emit({'type': 'result', 'response': answer})
         except Exception:
             logger.exception('Streaming agent request failed')
-            emit({'type': 'error', 'message': 'The agent could not complete this request. Please try again.'})
+            emit(
+                {
+                    'type': 'error',
+                    'message': 'The agent could not complete this request. Please try again.',
+                }
+            )
         finally:
             _sink.reset(token)
             emit(None)

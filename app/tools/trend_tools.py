@@ -22,7 +22,6 @@ from app.services.cost_report_service import (
 )
 from app.tools.financial_tools import calculate_financial_indicators
 
-
 TREND_INDICATORS = (
     "operating_margin",
     "occupancy_rate",
@@ -45,6 +44,7 @@ STABLE_THRESHOLDS = {
 
 
 # region Pure trend math
+
 
 def classify_direction(indicator: str, change: float | None) -> str:
     """Apply application thresholds; these labels are not official CMS ratings."""
@@ -85,6 +85,7 @@ def summarize_indicator_trend(
     yearly_indicators: list[FinancialIndicators],
 ) -> IndicatorTrend:
     # Order observed reports before comparing endpoints. Missing values stay missing.
+    """Describe observed endpoints while flagging reversals and invalid metrics."""
     ordered = sorted(
         yearly_indicators,
         key=lambda item: item.report_year or 0,
@@ -97,7 +98,7 @@ def summarize_indicator_trend(
             values_by_year[item.report_year] = getattr(item, indicator)
 
     available = []
-    for (year, value) in values_by_year.items():
+    for year, value in values_by_year.items():
         if value is not None:
             available.append((year, value))
 
@@ -138,14 +139,26 @@ def summarize_indicator_trend(
     direction = classify_direction(indicator, change)
     if len(signs) > 1:
         direction = 'mixed'
-        alerts.append(warning('trend_reversals', f'{indicator} changes direction within the observed years; an endpoint label would hide the fluctuation.',
-                              'Describe the observed sequence and endpoint change separately; do not claim sustained improvement or deterioration.', metric=indicator))
+        alerts.append(
+            warning(
+                'trend_reversals',
+                f'{indicator} changes direction within the observed years; an endpoint label would hide the fluctuation.',
+                'Describe the observed sequence and endpoint change separately; do not claim sustained improvement or deterioration.',
+                metric=indicator,
+            )
+        )
     for item in ordered:
         if indicator in item.blocked_metrics:
             direction = 'requires_review'
             change = None
-            alerts.append(warning('trend_invalid_metric', f'{indicator} contains a year with an invalid denominator or utilization scope.',
-                                  'Inspect source records; no directional conclusion or endpoint difference is supported.', metric=indicator))
+            alerts.append(
+                warning(
+                    'trend_invalid_metric',
+                    f'{indicator} contains a year with an invalid denominator or utilization scope.',
+                    'Inspect source records; no directional conclusion or endpoint difference is supported.',
+                    metric=indicator,
+                )
+            )
             break
     return IndicatorTrend(
         indicator=indicator,
@@ -196,14 +209,22 @@ def build_financial_trend(
     negative_margin_years = []
     liabilities_exceeding_assets_years = []
     for item in ordered:
-        is_negative = item.operating_margin is not None and item.operating_margin < 0 and 'operating_margin' not in item.blocked_metrics
+        is_negative = (
+            item.operating_margin is not None
+            and item.operating_margin < 0
+            and 'operating_margin' not in item.blocked_metrics
+        )
         if item.operating_margin is not None and 'operating_margin' not in item.blocked_metrics:
             margins.append(item.operating_margin)
         if item.report_year is not None:
             years_with_data.append(item.report_year)
             if is_negative:
                 negative_margin_years.append(item.report_year)
-            if 'liability_to_asset_ratio' not in item.blocked_metrics and item.liability_to_asset_ratio is not None and item.liability_to_asset_ratio > 100:
+            if (
+                'liability_to_asset_ratio' not in item.blocked_metrics
+                and item.liability_to_asset_ratio is not None
+                and item.liability_to_asset_ratio > 100
+            ):
                 liabilities_exceeding_assets_years.append(item.report_year)
 
     # Missing requested years break a consecutive-loss sequence.
@@ -223,12 +244,19 @@ def build_financial_trend(
     # Review dates, gaps and source warnings before describing a multi-year trend.
     quality_warnings = []
     for item in ordered:
-        quality_warnings.extend(item.quality_warnings)
+        for alert in item.quality_warnings:
+            quality_warnings.append(alert)
     for summary in indicator_trends.values():
-        quality_warnings.extend(summary.quality_warnings)
+        for alert in summary.quality_warnings:
+            quality_warnings.append(alert)
     if years_without_report or years_unavailable:
-        quality_warnings.append(warning('trend_year_gaps', 'Some requested years have no matching report or could not be retrieved.',
-                                       'Describe observed years only; gaps do not establish uninterrupted deterioration or improvement.'))
+        quality_warnings.append(
+            warning(
+                'trend_year_gaps',
+                'Some requested years have no matching report or could not be retrieved.',
+                'Describe observed years only; gaps do not establish uninterrupted deterioration or improvement.',
+            )
+        )
     for index, item in enumerate(ordered):
         if index == 0:
             continue
@@ -241,16 +269,27 @@ def build_financial_trend(
             if begin <= prior_end or abs((end - begin).days - (prior_end - prior_begin).days) > 31:
                 raise ValueError('Overlapping or unequal periods')
         except (ValueError, TypeError):
-            quality_warnings.append(warning('trend_fiscal_periods', 'Trend fiscal periods overlap, differ materially in length, or have missing/invalid dates.',
-                                           'Review fiscal dates before comparing. Direction labels are withheld pending review.'))
+            quality_warnings.append(
+                warning(
+                    'trend_fiscal_periods',
+                    'Trend fiscal periods overlap, differ materially in length, or have missing/invalid dates.',
+                    'Review fiscal dates before comparing. Direction labels are withheld pending review.',
+                )
+            )
             for summary in indicator_trends.values():
                 summary.direction = 'requires_review'
                 summary.change = None
             break
     _, rural_alerts = rural_from_record(rural_source)
-    quality_warnings.extend(rural_alerts)
+    for alert in rural_alerts:
+        quality_warnings.append(alert)
 
-    # 5. Preserve missing-report and unavailable-dataset years separately.
+    # 5. Preserve unavailable years in chronological order.
+    ordered_unavailable_years = {}
+    for year, reason in sorted(years_unavailable.items()):
+        ordered_unavailable_years[year] = reason
+
+    # Keep missing filings distinct from retrieval failures.
     return FinancialTrend(
         facility_id=facility_id,
         hospital_name=hospital_name,
@@ -259,7 +298,7 @@ def build_financial_trend(
         years_requested=years_requested,
         years_with_data=years_with_data,
         years_without_report=sorted(years_without_report),
-        years_unavailable=dict(sorted(years_unavailable.items())),
+        years_unavailable=ordered_unavailable_years,
         yearly_indicators=ordered,
         indicator_trends=indicator_trends,
         years_with_negative_operating_margin=negative_margin_years,
@@ -269,10 +308,12 @@ def build_financial_trend(
         quality_warnings=quality_warnings,
     )
 
+
 # endregion
 
 
 # region Orchestration
+
 
 def analyze_financial_trend_for_hospital(
     facility_id: str,
@@ -302,5 +343,6 @@ def analyze_financial_trend_for_hospital(
         years_without_report=history.years_without_report,
         years_unavailable=history.years_unavailable,
     )
+
 
 # endregion

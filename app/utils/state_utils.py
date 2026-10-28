@@ -60,6 +60,7 @@ STATE_NAME_TO_CODE = {
 
 STATE_CODES = set(STATE_NAME_TO_CODE.values())
 
+
 def normalize_state(state: str) -> str:
     """Accept a supported abbreviation or full state name; reject unknown values."""
     cleaned_state = state.strip()
@@ -76,6 +77,7 @@ def normalize_state(state: str) -> str:
         return STATE_NAME_TO_CODE[full_name]
 
     raise ValueError(f"Invalid state: {state}")
+
 
 # endregion
 
@@ -136,16 +138,16 @@ STATE_FIPS = {
     "PR": "72",
 }
 
+
 def get_state_fips(state: str) -> str:
     """Resolve a supported state to its Census FIPS code."""
     state_code = normalize_state(state)
 
     if state_code not in STATE_FIPS:
-        raise ValueError(
-            f"Unsupported state: {state}"
-        )
+        raise ValueError(f"Unsupported state: {state}")
 
     return STATE_FIPS[state_code]
+
 
 # endregion
 
@@ -204,16 +206,15 @@ STATE_CODE_TO_NAME = {
     "WY": "Wyoming",
 }
 
+
 def get_state_name(state: str) -> str:
     """Resolve a normalized abbreviation to the full name used by HRSA."""
     state_code = normalize_state(state)
 
     if state_code not in STATE_CODE_TO_NAME:
-        raise ValueError(
-            f"Unsupported state: {state}"
-        )
+        raise ValueError(f"Unsupported state: {state}")
 
     return STATE_CODE_TO_NAME[state_code]
 
-# endregion
 
+# endregion

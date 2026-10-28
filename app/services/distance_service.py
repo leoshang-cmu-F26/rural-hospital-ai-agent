@@ -35,7 +35,6 @@ from app.services.geocoding_service import (
 
 from app.services.agent_progress import report_progress
 
-
 EARTH_RADIUS_MILES = 3958.8
 
 
@@ -61,19 +60,9 @@ def calculate_distance_miles(
     delta_lat = lat2 - lat1
     delta_lon = lon2 - lon1
 
-    haversine_value = (
-        sin(delta_lat / 2) ** 2
-        + cos(lat1)
-        * cos(lat2)
-        * sin(delta_lon / 2) ** 2
-    )
+    haversine_value = sin(delta_lat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(delta_lon / 2) ** 2
 
-    central_angle = (
-        2
-        * asin(
-            sqrt(haversine_value)
-        )
-    )
+    central_angle = 2 * asin(sqrt(haversine_value))
 
     distance = EARTH_RADIUS_MILES * central_angle
 
@@ -109,17 +98,13 @@ def get_nearest_hospitals(
     """
 
     if limit <= 0:
-        raise ValueError(
-            "limit must be greater than 0"
-        )
+        raise ValueError("limit must be greater than 0")
 
     # -----------------------------------------------------
     # 1. Retrieve target hospital
     # -----------------------------------------------------
 
-    target_hospital = get_hospital_by_id(
-        facility_id
-    )
+    target_hospital = get_hospital_by_id(facility_id)
 
     if target_hospital is None:
         return None
@@ -128,9 +113,7 @@ def get_nearest_hospitals(
     # 2. Geocode target hospital
     # -----------------------------------------------------
 
-    target_coordinates = geocode_hospital(
-        facility_id
-    )
+    target_coordinates = geocode_hospital(facility_id)
 
     if target_coordinates is None:
         return None
@@ -139,9 +122,7 @@ def get_nearest_hospitals(
     # 3. Retrieve same-state candidate hospitals
     # -----------------------------------------------------
 
-    hospitals = get_hospitals_by_state(
-        target_hospital.state
-    )
+    hospitals = get_hospitals_by_state(target_hospital.state)
 
     nearest_candidates = []
 
@@ -150,9 +131,7 @@ def get_nearest_hospitals(
     report_progress("Locating same-state hospitals and calculating distances…")
     for hospital in hospitals:
 
-        candidate_id = hospital.get(
-            "facility_id"
-        )
+        candidate_id = hospital.get("facility_id")
 
         # Skip invalid records.
         if not candidate_id:
@@ -166,7 +145,9 @@ def get_nearest_hospitals(
         # 4. Geocode candidate hospital
         # -------------------------------------------------
 
-        report_progress(f"Locating hospital {len(nearest_candidates) + skipped_geocoding_count + 1}; calculating distances…")
+        report_progress(
+            f"Locating hospital {len(nearest_candidates) + skipped_geocoding_count + 1}; calculating distances…"
+        )
         candidate_coordinates = geocode_hospital_record(hospital)
 
         if candidate_coordinates is None:
@@ -177,141 +158,59 @@ def get_nearest_hospitals(
         # 5. Calculate straight-line distance
         # -------------------------------------------------
 
-        distance_miles = (
-            calculate_distance_miles(
-                target_coordinates[
-                    "latitude"
-                ],
-                target_coordinates[
-                    "longitude"
-                ],
-                candidate_coordinates[
-                    "latitude"
-                ],
-                candidate_coordinates[
-                    "longitude"
-                ],
-            )
+        distance_miles = calculate_distance_miles(
+            target_coordinates["latitude"],
+            target_coordinates["longitude"],
+            candidate_coordinates["latitude"],
+            candidate_coordinates["longitude"],
         )
 
-        nearest_candidates.append({
-            "facility_id":
-                candidate_coordinates[
-                    "facility_id"
-                ],
-
-            "facility_name":
-                candidate_coordinates[
-                    "facility_name"
-                ],
-
-            "city":
-                candidate_coordinates[
-                    "city"
-                ],
-
-            "state":
-                candidate_coordinates[
-                    "state"
-                ],
-
-            "zip_code":
-                candidate_coordinates[
-                    "zip_code"
-                ],
-
-            "latitude":
-                candidate_coordinates[
-                    "latitude"
-                ],
-
-            "longitude":
-                candidate_coordinates[
-                    "longitude"
-                ],
-
-            "distance_miles":
-                distance_miles,
-        })
+        nearest_candidates.append(
+            {
+                "facility_id": candidate_coordinates["facility_id"],
+                "facility_name": candidate_coordinates["facility_name"],
+                "city": candidate_coordinates["city"],
+                "state": candidate_coordinates["state"],
+                "zip_code": candidate_coordinates["zip_code"],
+                "latitude": candidate_coordinates["latitude"],
+                "longitude": candidate_coordinates["longitude"],
+                "distance_miles": distance_miles,
+            }
+        )
 
     # -----------------------------------------------------
     # 6. Sort by distance
     # -----------------------------------------------------
 
-    nearest_candidates.sort(
-        key=lambda hospital:
-            hospital["distance_miles"]
-    )
+    nearest_candidates.sort(key=lambda hospital: hospital["distance_miles"])
 
-    selected_hospitals = (
-        nearest_candidates[:limit]
-    )
+    selected_hospitals = nearest_candidates[:limit]
 
     # -----------------------------------------------------
     # 7. Return structured result
     # -----------------------------------------------------
 
     return {
+        "data_provenance": target_coordinates.get("data_provenance"),
         "target_hospital": {
-            "facility_id":
-                target_hospital.facility_id,
-
-            "facility_name":
-                target_hospital.facility_name,
-
-            "city":
-                target_hospital.citytown,
-
-            "state":
-                target_hospital.state,
-
-            "zip_code":
-                target_hospital.zip_code,
-
-            "latitude":
-                target_coordinates[
-                    "latitude"
-                ],
-
-            "longitude":
-                target_coordinates[
-                    "longitude"
-                ],
+            "facility_id": target_hospital.facility_id,
+            "facility_name": target_hospital.facility_name,
+            "city": target_hospital.citytown,
+            "state": target_hospital.state,
+            "zip_code": target_hospital.zip_code,
+            "latitude": target_coordinates["latitude"],
+            "longitude": target_coordinates["longitude"],
         },
-
-        "candidate_scope":
-            "same_state",
-
-        "candidate_count":
-            len(nearest_candidates),
-
-        "skipped_geocoding_count":
-            skipped_geocoding_count,
-
-        "returned_count":
-            len(selected_hospitals),
-
-        "nearest_hospitals":
-            selected_hospitals,
-
-        "distance_method":
-            "Haversine straight-line distance",
-
-        "distance_unit":
-            "miles",
-
+        "candidate_scope": "same_state",
+        "candidate_count": len(nearest_candidates),
+        "skipped_geocoding_count": skipped_geocoding_count,
+        "returned_count": len(selected_hospitals),
+        "nearest_hospitals": selected_hospitals,
+        "distance_method": "Haversine straight-line distance",
+        "distance_unit": "miles",
         "limitations": [
-            (
-                "Candidate hospitals are currently limited "
-                "to hospitals in the same state."
-            ),
-            (
-                "Distances are straight-line distances, "
-                "not driving distance or travel time."
-            ),
-            (
-                "Hospital capacity and service availability "
-                "are not considered."
-            ),
+            ("Candidate hospitals are currently limited " "to hospitals in the same state."),
+            ("Distances are straight-line distances, " "not driving distance or travel time."),
+            ("Hospital capacity and service availability " "are not considered."),
         ],
     }

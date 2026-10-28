@@ -4,13 +4,18 @@ from contextlib import closing
 from pathlib import Path
 import sqlite3
 
-
-COORDINATE_DB_PATH = (
-    Path(__file__).resolve().parents[2] / "data" / "hospital_coordinates.db"
-)
+COORDINATE_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "hospital_coordinates.db"
 FIELDS = (
-    "facility_id", "facility_name", "address", "city", "state", "zip_code",
-    "latitude", "longitude", "matched_address", "source",
+    "facility_id",
+    "facility_name",
+    "address",
+    "city",
+    "state",
+    "zip_code",
+    "latitude",
+    "longitude",
+    "matched_address",
+    "source",
 )
 
 
@@ -45,11 +50,14 @@ def read_coordinate_cache(facility_id: str) -> dict | None:
     with closing(sqlite3.connect(COORDINATE_DB_PATH)) as connection:
         connection.row_factory = sqlite3.Row
         row = connection.execute(
-            f"SELECT {', '.join(FIELDS)} FROM hospital_coordinates "
-            "WHERE facility_id = ?", (facility_id,),
+            f"SELECT {', '.join(FIELDS)} FROM hospital_coordinates " "WHERE facility_id = ?",
+            (facility_id,),
         ).fetchone()
     if row is not None:
-        return dict(row)
+        result = {}
+        for field_name in row.keys():
+            result[field_name] = row[field_name]
+        return result
     return None
 
 

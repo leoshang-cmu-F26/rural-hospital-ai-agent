@@ -3,7 +3,9 @@
 This project separates model orchestration from external data retrieval and
 deterministic calculations. Comments describe functional stages and data limits.
 Production Python uses explicit loops and `if/else` instead of comprehensions
-and conditional expressions. Test fixtures may retain compact sample-data setup.
+and conditional expressions. Dictionary copies/merges use explicit item loops; lists use `append()`. Standard
+model constructors and concurrency APIs remain where they express the operation
+clearly. Test fixtures may retain compact sample-data setup.
 
 ## Recommended reading order
 
@@ -22,13 +24,41 @@ and conditional expressions. Test fixtures may retain compact sample-data setup.
 - `cost_report_service.py`: catalog discovery, report selection, parsing and history.
 - `census_service.py`: county population/age estimates and hospital county mapping.
 - `hrsa_service.py`: county-associated primary-care shortage designations.
-- `geocoding_service.py`: in-memory TTL cache, then SQLite, then Census Geocoder.
+- `geocoding_service.py`: imported coordinate snapshots when configured; otherwise
+  in-memory TTL cache, SQLite, then Census Geocoder.
 - `coordinate_cache.py`: create/read/update the runtime coordinate database.
 - `state_utils.py`, `constants.py`, `models/`: shared names, codes and typed records.
 
 Missing data remains unavailable, not zero. A missing matching report is distinct
 from a failed dataset request. County evidence is not a hospital service-area or
 tribal-population measure.
+
+## Database snapshots and independent import jobs
+
+- `financial_store.py`: connection policy/pool, read-only report queries, audited
+  imports, and atomic publication of complete state/year snapshots.
+- `reference_store.py`: cached state snapshots for directories, counties, HPSA and
+  coordinates, with explicit coverage and source dates.
+- `financial_import_service.py`: official catalog discovery, checked downloads,
+  source-row validation, revision detection and per-year import jobs.
+- `reference_import_service.py`: complete directory/Census/HPSA retrieval and
+  coordinate imports with explicit unavailable matches.
+- `scripts/import_financial_history.py` and `scripts/import_reference_data.py`:
+  command-line options and safe exit statuses; neither runs as part of chat.
+- `supabase/migrations/`: private tables and scope constraints. Code cleanup does
+  not rerun migrations, refresh sources or change existing database contents.
+
+See [financial snapshots](financial_database.md) and
+[reference snapshots](reference_database.md) for configuration and import commands.
+
+## Data quality and document retrieval
+
+- `data_quality_service.py`: metric interpretation guards, dated rural notices and
+  model-independent frontend warnings.
+- `methodology_service.py`: checksum verification, exact document chunks and local
+  SQLite FTS5/BM25 retrieval.
+- `scripts/build_methodology_corpus.py`, `extract_cost_dictionary.py` and
+  `extract_tribal_directory.py`: reviewed reference extraction and refresh helpers.
 
 ## Analysis orchestration
 

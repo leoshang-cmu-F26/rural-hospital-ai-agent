@@ -1,4 +1,5 @@
 """Offline lexical RAG retrieval over reviewed, versioned methodology documents."""
+
 from contextlib import closing
 import hashlib
 import json
@@ -11,19 +12,52 @@ ROOT = Path(__file__).resolve().parents[2]
 CORPUS_PATH = ROOT / 'data/reference/methodology/corpus.json'
 INDEX_PATH = ROOT / 'data/methodology.db'
 _INDEX_LOCK = Lock()
-STOPWORDS = {'the', 'a', 'an', 'is', 'are', 'was', 'what', 'why', 'does', 'do', 'how', 'can',
-             'of', 'for', 'to', 'and', 'or', 'in', 'this', 'that', 'with', 'mean', 'explain', 'please', 'it', 'my'}
+STOPWORDS = {
+    'the',
+    'a',
+    'an',
+    'is',
+    'are',
+    'was',
+    'what',
+    'why',
+    'does',
+    'do',
+    'how',
+    'can',
+    'of',
+    'for',
+    'to',
+    'and',
+    'or',
+    'in',
+    'this',
+    'that',
+    'with',
+    'mean',
+    'explain',
+    'please',
+    'it',
+    'my',
+}
 ALIASES = {
     'hpsa': ['shortage', 'population', 'facility'],
     'operating margin': ['net', 'income', 'service', 'patients'],
     'liability': ['liabilities', 'assets'],
     'occupancy': ['bed', 'days', 'available'],
     'acs': ['estimates', 'margin', 'error'],
-    '财务': ['cost', 'report', 'financial'], '财年': ['fiscal', 'period'],
-    '人口': ['population', 'estimates'], '统计': ['statistical', 'testing'],
-    '误差': ['margin', 'error'], '短缺': ['shortage', 'hpsa'],
-    '利润率': ['operating', 'margin'], '负资产': ['negative', 'assets'],
+    '财务': ['cost', 'report', 'financial'],
+    '财年': ['fiscal', 'period'],
+    '人口': ['population', 'estimates'],
+    '统计': ['statistical', 'testing'],
+    '误差': ['margin', 'error'],
+    '短缺': ['shortage', 'hpsa'],
+    '利润率': ['operating', 'margin'],
+    '负资产': ['negative', 'assets'],
 }
+
+
+# Exact document passages
 
 
 def _chunks(text, size=900):
@@ -35,6 +69,9 @@ def _chunks(text, size=900):
         if end == len(text):
             break
         start = end - 100
+
+
+# Verified local search index
 
 
 def initialize_methodology_index():
@@ -53,21 +90,46 @@ def initialize_methodology_index():
         INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
         with closing(sqlite3.connect(INDEX_PATH, timeout=10)) as connection:
             with connection:
-                connection.execute('CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT)')
-                connection.execute('CREATE VIRTUAL TABLE IF NOT EXISTS passages USING fts5(title, topic, content, source_json UNINDEXED)')
-                cached = connection.execute("SELECT value FROM metadata WHERE key='corpus_sha256'").fetchone()
+                connection.execute(
+                    'CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT)'
+                )
+                connection.execute(
+                    'CREATE VIRTUAL TABLE IF NOT EXISTS passages USING fts5(title, topic, content, source_json UNINDEXED)'
+                )
+                cached = connection.execute(
+                    "SELECT value FROM metadata WHERE key='corpus_sha256'"
+                ).fetchone()
                 if cached and cached[0] == digest:
                     return
                 connection.execute('DELETE FROM passages')
                 for document in corpus['documents']:
                     for index, (start, end, content) in enumerate(_chunks(document['content'])):
                         metadata = {}
-                        for key in ('title', 'url', 'publisher', 'retrieved_at', 'publication_date', 'source_kind', 'content_sha256', 'extraction_method', 'source_page'):
+                        for key in (
+                            'title',
+                            'url',
+                            'publisher',
+                            'retrieved_at',
+                            'publication_date',
+                            'source_kind',
+                            'content_sha256',
+                            'extraction_method',
+                            'source_page',
+                        ):
                             metadata[key] = document.get(key)
-                        metadata.update({'passage_id': document['id'] + ':' + str(index), 'start_offset': start, 'end_offset': end})
-                        connection.execute('INSERT INTO passages(title, topic, content, source_json) VALUES (?, ?, ?, ?)',
-                                           (document['title'], document['topic'], content, json.dumps(metadata)))
-                connection.execute("INSERT OR REPLACE INTO metadata VALUES ('corpus_sha256', ?)", (digest,))
+                        metadata['passage_id'] = document['id'] + ':' + str(index)
+                        metadata['start_offset'] = start
+                        metadata['end_offset'] = end
+                        connection.execute(
+                            'INSERT INTO passages(title, topic, content, source_json) VALUES (?, ?, ?, ?)',
+                            (document['title'], document['topic'], content, json.dumps(metadata)),
+                        )
+                connection.execute(
+                    "INSERT OR REPLACE INTO metadata VALUES ('corpus_sha256', ?)", (digest,)
+                )
+
+
+# Bounded passage retrieval
 
 
 def retrieve_methodology(query, limit=3):
@@ -86,11 +148,18 @@ def retrieve_methodology(query, limit=3):
             for token in expansion:
                 if token not in tokens:
                     tokens.append(token)
-    result = {'report_kind': 'methodology_retrieval', 'retrieval_method': 'SQLite FTS5 / BM25 lexical retrieval',
-              'available': True, 'passages': [], 'has_matches': False,
-              'limitations': ['Versioned document snapshots; retrieval dates are not publication dates or proof of current policy.',
-                              'Passages explain methods only. Use structured tools for hospital identities, classifications and numbers.',
-                              'Lexical matches are not semantic confidence. If passages do not support the question, say evidence is insufficient.']}
+    result = {
+        'report_kind': 'methodology_retrieval',
+        'retrieval_method': 'SQLite FTS5 / BM25 lexical retrieval',
+        'available': True,
+        'passages': [],
+        'has_matches': False,
+        'limitations': [
+            'Versioned document snapshots; retrieval dates are not publication dates or proof of current policy.',
+            'Passages explain methods only. Use structured tools for hospital identities, classifications and numbers.',
+            'Lexical matches are not semantic confidence. If passages do not support the question, say evidence is insufficient.',
+        ],
+    }
     if not tokens:
         return result
     # 2. Build/reuse the local index. Query text never becomes raw FTS or SQL syntax.
@@ -103,13 +172,27 @@ def retrieve_methodology(query, limit=3):
         with closing(sqlite3.connect(INDEX_PATH, timeout=10)) as connection:
             rows = connection.execute(
                 'SELECT content, source_json FROM passages WHERE passages MATCH ? ORDER BY bm25(passages, 2, 0.2, 1, 0) LIMIT ?',
-                (expression, limit)).fetchall()
+                (expression, limit),
+            ).fetchall()
         # 3. Return only capped passages with exact provenance for cited generation.
         for content, metadata in rows:
-            result['passages'].append({**json.loads(metadata), 'excerpt': content})
+            passage_data = {}
+            for copied_key, copied_value in (json.loads(metadata)).items():
+                passage_data[copied_key] = copied_value
+            passage_data['excerpt'] = content
+
+            result['passages'].append(passage_data)
         result['has_matches'] = bool(rows)
         # A match is only retrieval support; the model must still check entailment.
-        result['support_note'] = 'has_matches means matching passages exist, not that every claim in the question is established.'
+        result['support_note'] = (
+            'has_matches means matching passages exist, not that every claim in the question is established.'
+        )
         return result
     except (OSError, ValueError, sqlite3.Error):
-        return {**result, 'available': False, 'error': 'Methodology corpus or local search index unavailable.'}
+        error_response = {}
+        for copied_key, copied_value in (result).items():
+            error_response[copied_key] = copied_value
+        error_response['available'] = False
+        error_response['error'] = 'Methodology corpus or local search index unavailable.'
+
+        return error_response

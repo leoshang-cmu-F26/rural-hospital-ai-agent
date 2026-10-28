@@ -8,6 +8,24 @@ The chat frontend is served at `/demo/`; the root URL shows the API status. The 
 
 The prototype retrieves hospital and cost-report data from CMS, calculates deterministic financial and operational indicators for a single year and across multiple years, and uses an LLM-powered agent to generate evidence-based natural-language assessments.
 
+## Historical financial database
+
+The backend now supports Supabase/PostgreSQL financial snapshots. With
+`DATABASE_URL` configured, financial analysis defaults to `database_only` mode:
+reports and available years come from completed database imports, not live CMS
+requests. Missing coverage is disclosed instead of interpreted as no filing.
+
+Wisconsin and Wyoming 2020–2024 have been imported and verified: **900 report rows**
+(753 WI + 147 WY), preserving all source fields and multiple reports. Results include source retrieval/import
+dates; "latest" in this mode means the latest imported year. WI/WY hospital identity, ACS 2024 county estimates, HRSA primary-care features
+and available coordinates are now stored too. Set `REFERENCE_DATA_MODE=database_only`
+to use those dated snapshots; arbitrary new addresses may still require online matching.
+See [reference import scope, refresh commands and capacity assessment](docs/reference_database.md).
+
+A separate update command compares official catalog versions and only downloads
+new/revised CSVs. It is not run in a user's analysis request. See
+[setup, import/update commands, table inspection and coverage](docs/financial_database.md).
+
 ## Current Prototype
 
 The system currently supports:
@@ -85,6 +103,7 @@ Natural-Language Response
 - FastAPI, Uvicorn, Pydantic
 - LangChain, LangGraph, OpenAI API
 - Requests, cachetools, python-dotenv
+- Supabase/PostgreSQL financial snapshots using psycopg and a small TLS connection pool
 - SQLite coordinate caching and regenerable directory/methodology indexes
 - HTML, CSS, JavaScript, and a safe DOM-based Markdown renderer
 - pytest (offline unit tests)

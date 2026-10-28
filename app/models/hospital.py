@@ -8,6 +8,7 @@ class Hospital(BaseModel):
 
     facility_id: str
     facility_name: str
+    source_provenance: dict | None = None
 
     address: str | None = None
     citytown: str

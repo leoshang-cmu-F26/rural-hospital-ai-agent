@@ -19,3 +19,6 @@ __pycache__/
 # Runtime hospital coordinate cache
 data/*.db
 data/*.db-*
+
+# Downloaded CMS bulk files and integrity sidecars
+data/imports/

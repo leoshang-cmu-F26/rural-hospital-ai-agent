@@ -23,14 +23,13 @@ from app.services.coordinate_cache import read_coordinate_cache, write_coordinat
 
 import requests
 from cachetools import TTLCache
+from copy import deepcopy
+from app.services import reference_store
 from app.services.cms_service import (
     get_hospital_by_id,
 )
 
-CENSUS_GEOCODER_URL = (
-    "https://geocoding.geo.census.gov/geocoder/"
-    "locations/address"
-)
+CENSUS_GEOCODER_URL = "https://geocoding.geo.census.gov/geocoder/" "locations/address"
 
 
 # ---------------------------------------------------------
@@ -48,6 +47,7 @@ HOSPITAL_COORDINATE_CACHE = TTLCache(
 # ---------------------------------------------------------
 # Address geocoding
 # ---------------------------------------------------------
+
 
 def geocode_address(
     address: str,
@@ -109,25 +109,21 @@ def geocode_address(
     longitude = coordinates.get("x")
     latitude = coordinates.get("y")
 
-    if (
-        latitude is None
-        or longitude is None
-    ):
+    if latitude is None or longitude is None:
         return None
 
     return {
         "latitude": float(latitude),
         "longitude": float(longitude),
-        "matched_address":
-            match.get("matchedAddress"),
-        "source":
-            "U.S. Census Bureau Geocoder",
+        "matched_address": match.get("matchedAddress"),
+        "source": "U.S. Census Bureau Geocoder",
     }
 
 
 # ---------------------------------------------------------
 # Hospital geocoding
 # ---------------------------------------------------------
+
 
 def geocode_hospital(
     facility_id: str,
@@ -162,10 +158,14 @@ def geocode_hospital(
     # 1. Check cache
     # -----------------------------------------------------
 
+    if reference_store.data_mode() != 'live':
+        hospital = get_hospital_by_id(facility_id)
+        if hospital is None:
+            return None
+        return geocode_hospital_record(hospital.model_dump())
+
     if facility_id in HOSPITAL_COORDINATE_CACHE:
-        return HOSPITAL_COORDINATE_CACHE[
-            facility_id
-        ]
+        return HOSPITAL_COORDINATE_CACHE[facility_id]
 
     # Memory miss: SQLite survives process restarts and repopulates the TTL cache.
     persistent_result = read_coordinate_cache(facility_id)
@@ -177,9 +177,7 @@ def geocode_hospital(
     # 2. Retrieve hospital information from CMS
     # -----------------------------------------------------
 
-    hospital = get_hospital_by_id(
-        facility_id
-    )
+    hospital = get_hospital_by_id(facility_id)
 
     if hospital is None:
         return None
@@ -219,35 +217,16 @@ def geocode_hospital(
     # -----------------------------------------------------
 
     result = {
-        "facility_id":
-            hospital.facility_id,
-
-        "facility_name":
-            hospital.facility_name,
-
-        "address":
-            hospital.address,
-
-        "city":
-            hospital.citytown,
-
-        "state":
-            hospital.state,
-
-        "zip_code":
-            hospital.zip_code,
-
-        "latitude":
-            coordinates["latitude"],
-
-        "longitude":
-            coordinates["longitude"],
-
-        "matched_address":
-            coordinates["matched_address"],
-
-        "source":
-            coordinates["source"],
+        "facility_id": hospital.facility_id,
+        "facility_name": hospital.facility_name,
+        "address": hospital.address,
+        "city": hospital.citytown,
+        "state": hospital.state,
+        "zip_code": hospital.zip_code,
+        "latitude": coordinates["latitude"],
+        "longitude": coordinates["longitude"],
+        "matched_address": coordinates["matched_address"],
+        "source": coordinates["source"],
     }
 
     # -----------------------------------------------------
@@ -256,9 +235,7 @@ def geocode_hospital(
 
     # Persist successful matches before storing the fast in-memory copy.
     write_coordinate_cache(result)
-    HOSPITAL_COORDINATE_CACHE[
-        facility_id
-    ] = result
+    HOSPITAL_COORDINATE_CACHE[facility_id] = result
 
     return result
 
@@ -277,9 +254,7 @@ def geocode_hospital_record(
     Coordinates are cached by CMS Certification Number (CCN).
     """
 
-    facility_id = hospital.get(
-        "facility_id"
-    )
+    facility_id = hospital.get("facility_id")
 
     if not facility_id:
         return None
@@ -288,10 +263,29 @@ def geocode_hospital_record(
     # 1. Check coordinate cache
     # -----------------------------------------------------
 
+    snapshot = reference_store.read_snapshot('hospital_coordinates', hospital.get('state', ''))
+    if snapshot is not None:
+        raw = snapshot['records'].get(facility_id)
+        if raw is None or not raw.get('available'):
+            return None
+        # Never reuse a point after its hospital address changed in a newer directory.
+        for point_field, row_field in (
+            ('address', 'address'),
+            ('city', 'citytown'),
+            ('state', 'state'),
+            ('zip_code', 'zip_code'),
+        ):
+            if (
+                str(raw.get(point_field) or '').strip().upper()
+                != str(hospital.get(row_field) or '').strip().upper()
+            ):
+                return None
+        result = deepcopy(raw)
+        result['data_provenance'] = snapshot['data_provenance']
+        return result
+
     if facility_id in HOSPITAL_COORDINATE_CACHE:
-        return HOSPITAL_COORDINATE_CACHE[
-            facility_id
-        ]
+        return HOSPITAL_COORDINATE_CACHE[facility_id]
 
     # Memory miss: SQLite survives process restarts and repopulates the TTL cache.
     persistent_result = read_coordinate_cache(facility_id)
@@ -308,12 +302,14 @@ def geocode_hospital_record(
     state = hospital.get("state")
     zip_code = hospital.get("zip_code")
 
-    if not all([
-        address,
-        city,
-        state,
-        zip_code,
-    ]):
+    if not all(
+        [
+            address,
+            city,
+            state,
+            zip_code,
+        ]
+    ):
         return None
 
     # -----------------------------------------------------
@@ -335,39 +331,16 @@ def geocode_hospital_record(
     # -----------------------------------------------------
 
     result = {
-        "facility_id":
-            facility_id,
-
-        "facility_name":
-            hospital.get(
-                "facility_name"
-            ),
-
-        "address":
-            address,
-
-        "city":
-            city,
-
-        "state":
-            state,
-
-        "zip_code":
-            zip_code,
-
-        "latitude":
-            coordinates["latitude"],
-
-        "longitude":
-            coordinates["longitude"],
-
-        "matched_address":
-            coordinates[
-                "matched_address"
-            ],
-
-        "source":
-            coordinates["source"],
+        "facility_id": facility_id,
+        "facility_name": hospital.get("facility_name"),
+        "address": address,
+        "city": city,
+        "state": state,
+        "zip_code": zip_code,
+        "latitude": coordinates["latitude"],
+        "longitude": coordinates["longitude"],
+        "matched_address": coordinates["matched_address"],
+        "source": coordinates["source"],
     }
 
     # -----------------------------------------------------
@@ -376,8 +349,6 @@ def geocode_hospital_record(
 
     # Persist successful matches before storing the fast in-memory copy.
     write_coordinate_cache(result)
-    HOSPITAL_COORDINATE_CACHE[
-        facility_id
-    ] = result
+    HOSPITAL_COORDINATE_CACHE[facility_id] = result
 
     return result

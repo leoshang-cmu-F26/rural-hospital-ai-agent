@@ -1,4 +1,5 @@
 """Compose existing deterministic analyses, preserving partial evidence."""
+
 import logging
 import sqlite3
 import requests
@@ -10,21 +11,40 @@ logger = logging.getLogger(__name__)
 
 
 def _section(lookup, **kwargs):
-    # Normalize retrieval failures without discarding the other report sections.
+    """Normalize one section failure without discarding other evidence."""
     try:
         data = lookup(**kwargs)
         if data is None:
             return {'available': False, 'error': 'No matching data found.'}
         if 'error' in data:
-            return {**data, 'available': False}
-        return {**data, 'available': True}
-    except (requests.RequestException, CostReportUnavailableError, ValueError, sqlite3.Error) as error:
+            failed_section = {}
+            for copied_key, copied_value in (data).items():
+                failed_section[copied_key] = copied_value
+            failed_section['available'] = False
+
+            return failed_section
+        available_section = {}
+        for copied_key, copied_value in (data).items():
+            available_section[copied_key] = copied_value
+        available_section['available'] = True
+
+        return available_section
+    except (
+        requests.RequestException,
+        CostReportUnavailableError,
+        ValueError,
+        sqlite3.Error,
+    ) as error:
         logger.warning('Investigation section unavailable: %s', type(error).__name__)
-        return {'available': False, 'error': 'This data section could not be retrieved. Please retry later.'}
+        return {
+            'available': False,
+            'error': 'This data section could not be retrieved. Please retry later.',
+        }
 
 
-def build_hospital_investigation(facility_id, financial_lookup, trend_lookup,
-                                 access_lookup, start_year=None, end_year=None):
+def build_hospital_investigation(
+    facility_id, financial_lookup, trend_lookup, access_lookup, start_year=None, end_year=None
+):
     """No scores or predictions; reuse the existing tools' values and periods."""
     # 1. Validate identity and trend bounds before external data requests.
     facility_id = facility_id.strip()
@@ -32,15 +52,21 @@ def build_hospital_investigation(facility_id, financial_lookup, trend_lookup,
         return {'error': 'A hospital CCN is required.'}
     if start_year is not None and end_year is not None and start_year > end_year:
         return {'error': 'start_year must not exceed end_year.'}
-    
+
     # 2. Resolve the target once; never substitute another hospital.
     report_progress('Identifying the hospital for a full investigation…')
     try:
         hospital = get_hospital_by_id(facility_id)
     except requests.RequestException:
-        return {'error': 'CMS hospital information could not be retrieved.', 'facility_id': facility_id}
+        return {
+            'error': 'CMS hospital information could not be retrieved.',
+            'facility_id': facility_id,
+        }
     if hospital is None:
-        return {'error': 'Hospital not found in the current CMS hospital dataset.', 'facility_id': facility_id}
+        return {
+            'error': 'Hospital not found in the current CMS hospital dataset.',
+            'facility_id': facility_id,
+        }
 
     # 3. Retrieve latest financials separately from the requested trend period.
     report_progress('Retrieving the latest financial report and indicators…')
@@ -48,9 +74,10 @@ def build_hospital_investigation(facility_id, financial_lookup, trend_lookup,
 
     # 4. Summarize the available multi-year history with its actual year coverage.
     report_progress('Reviewing multi-year financial trends…')
-    trend = _section(trend_lookup, facility_id=facility_id,
-                     start_year=start_year, end_year=end_year)
-    
+    trend = _section(
+        trend_lookup, facility_id=facility_id, start_year=start_year, end_year=end_year
+    )
+
     # 5. Gather administrative, demographic, shortage and distance evidence.
     report_progress('Gathering hospital alternatives, population and shortage evidence…')
     access = _section(access_lookup, facility_id=facility_id)
@@ -71,8 +98,12 @@ def build_hospital_investigation(facility_id, financial_lookup, trend_lookup,
                 gaps.append({'section': 'financial_trend', key: trend[key]})
     if access.get('available'):
         if access.get('county_comparison_available') is False:
-            gaps.append({'section': 'county_comparison',
-                         'reason': access.get('county_comparison_error', 'County unavailable')})
+            gaps.append(
+                {
+                    'section': 'county_comparison',
+                    'reason': access.get('county_comparison_error', 'County unavailable'),
+                }
+            )
         for key in ('county_demographics', 'primary_care_hpsa', 'distance_analysis'):
             item = access.get(key)
             if not item or not item.get('available'):
@@ -80,22 +111,24 @@ def build_hospital_investigation(facility_id, financial_lookup, trend_lookup,
         skipped = access.get('distance_analysis', {}).get('skipped_geocoding_count', 0)
         if skipped:
             gaps.append({'section': 'distance_analysis', 'excluded_hospital_count': skipped})
-    
+
     # 7. Partial means incomplete evidence, not a hospital risk classification.
     if gaps:
         status = 'partial'
     else:
         status = 'complete'
 
-    return {
-        'target_hospital': hospital.model_dump(),
-        **sections,
-        'data_gaps': gaps,
-        'status': status,
-        'notes': [
-            'Financials use the latest available single-year report; trends use the requested period or the default recent five dataset years.',
-            'Use actual report years and fiscal periods; do not imply different periods are directly comparable.',
-            'This report does not calculate a risk score or predict closure, bankruptcy or recovery.',
-            'County and distance evidence does not establish equivalent services, capacity or patient eligibility.',
-        ],
-    }
+    investigation_report = {}
+    investigation_report['target_hospital'] = hospital.model_dump()
+    for copied_key, copied_value in (sections).items():
+        investigation_report[copied_key] = copied_value
+    investigation_report['data_gaps'] = gaps
+    investigation_report['status'] = status
+    investigation_report['notes'] = [
+        'Financials use the latest available single-year report; trends use the requested period or the default recent five dataset years.',
+        'Use actual report years and fiscal periods; do not imply different periods are directly comparable.',
+        'This report does not calculate a risk score or predict closure, bankruptcy or recovery.',
+        'County and distance evidence does not establish equivalent services, capacity or patient eligibility.',
+    ]
+
+    return investigation_report

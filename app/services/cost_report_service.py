@@ -21,24 +21,19 @@ import requests
 from cachetools import TTLCache
 
 from app.models.financial import HospitalFinancialRecord
-
+from app.services import financial_store
 
 logger = logging.getLogger(__name__)
 
 
 CMS_CATALOG_URL = "https://data.cms.gov/data.json"
 
-CMS_DATASET_DATA_URL = (
-    "https://data.cms.gov/data-api/v1/dataset/{dataset_id}/data"
-)
+CMS_DATASET_DATA_URL = "https://data.cms.gov/data-api/v1/dataset/{dataset_id}/data"
 
-COST_REPORT_TITLE_PATTERN = re.compile(
-    r"^Hospital Provider Cost Report : (\d{4})-"
-)
+COST_REPORT_TITLE_PATTERN = re.compile(r"^Hospital Provider Cost Report : (\d{4})-")
 
 DATASET_ID_PATTERN = re.compile(
-    r"dataset/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}"
-    r"-[0-9a-f]{4}-[0-9a-f]{12})"
+    r"dataset/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}" r"-[0-9a-f]{4}-[0-9a-f]{12})"
 )
 
 # Snapshot of the CMS catalog taken on 2026-10-05. Used only when
@@ -89,15 +84,15 @@ class CostReportUnavailableError(Exception):
     """Raised when a year's cost-report dataset cannot be retrieved."""
 
     def __init__(self, year: int, reason: str):
-        super().__init__(
-            f"Cost report dataset for {year} is unavailable: {reason}"
-        )
+        super().__init__(f"Cost report dataset for {year} is unavailable: {reason}")
         self.year = year
         self.reason = reason
 
 
 @dataclass
 class FinancialHistoryResult:
+    """Keep retrieved reports separate from absent and unavailable years."""
+
     facility_id: str
     years_requested: list[int]
     records: list[HospitalFinancialRecord]
@@ -137,17 +132,12 @@ def discover_cost_report_datasets() -> dict[int, str]:
     datasets: dict[int, str] = {}
 
     # Select only hospital cost-report entries with recognizable years and dataset IDs.
-    # Select only hospital cost-report entries with recognizable years and dataset IDs.
     for entry in response.json().get("dataset", []):
-        title_match = COST_REPORT_TITLE_PATTERN.match(
-            entry.get("title", "")
-        )
+        title_match = COST_REPORT_TITLE_PATTERN.match(entry.get("title", ""))
         if not title_match:
             continue
 
-        id_match = DATASET_ID_PATTERN.search(
-            entry.get("identifier", "")
-        )
+        id_match = DATASET_ID_PATTERN.search(entry.get("identifier", ""))
         if not id_match:
             continue
 
@@ -169,7 +159,6 @@ def get_cost_report_datasets(
     global _last_catalog_refresh
 
     # Serialize catalog refreshes and apply the cooldown before any network request.
-    # Serialize catalog refreshes and apply the cooldown before any network request.
     with _catalog_lock:
         cached = _catalog_cache.get("datasets")
         now = time.monotonic()
@@ -178,10 +167,7 @@ def get_cost_report_datasets(
             if not force_refresh:
                 return cached
 
-            within_cooldown = (
-                now - _last_catalog_refresh
-                < CATALOG_REFRESH_COOLDOWN_SECONDS
-            )
+            within_cooldown = now - _last_catalog_refresh < CATALOG_REFRESH_COOLDOWN_SECONDS
             if within_cooldown:
                 return cached
 
@@ -196,15 +182,19 @@ def get_cost_report_datasets(
             )
         except (requests.RequestException, ValueError) as error:
             logger.warning(
-                "Could not download CMS catalog (%s); "
-                "using bundled dataset snapshot",
+                "Could not download CMS catalog (%s); " "using bundled dataset snapshot",
                 error,
             )
             discovered = {}
 
         # Fresh catalog entries override bundled fallbacks for the same year.
-        # Fresh catalog entries override bundled fallbacks for the same year.
-        datasets = {**FALLBACK_COST_REPORT_DATASETS, **discovered}
+        merged_datasets = {}
+        for copied_key, copied_value in (FALLBACK_COST_REPORT_DATASETS).items():
+            merged_datasets[copied_key] = copied_value
+        for copied_key, copied_value in (discovered).items():
+            merged_datasets[copied_key] = copied_value
+
+        datasets = merged_datasets
         _catalog_cache["datasets"] = datasets
 
         return datasets
@@ -212,22 +202,44 @@ def get_cost_report_datasets(
 
 def get_available_report_years() -> list[int]:
     """List the dataset years currently known to the CMS catalog."""
-    return sorted(get_cost_report_datasets())
+    mode = financial_store.data_mode()
+    imported = []
+    if mode != 'live':
+        try:
+            imported = financial_store.available_years()
+        except financial_store.FinancialStoreUnavailable:
+            if mode == 'database_only':
+                raise CostReportUnavailableError(
+                    0, 'Financial snapshot database unavailable.'
+                ) from None
+        if mode == 'database_only':
+            if not imported:
+                raise CostReportUnavailableError(
+                    0, 'No completed financial imports are available. Run the import job first.'
+                )
+            return imported
+    years = set(get_cost_report_datasets())
+    for year in imported:
+        years.add(year)
+    return sorted(years)
 
 
 def get_latest_report_year() -> int:
     """Return the newest known dataset year, not a hospital-specific filing year."""
     return get_available_report_years()[-1]
 
+
 # endregion
 
 
 # region Row retrieval
 
+
 def _request_rows(
     dataset_id: str,
     facility_id: str,
 ) -> requests.Response:
+    """Request one hospital and dataset with a finite timeout."""
     return requests.get(
         CMS_DATASET_DATA_URL.format(dataset_id=dataset_id),
         params={
@@ -252,6 +264,28 @@ def fetch_cost_report_rows(
     """
     facility_id = facility_id.strip()
 
+    # Read complete stored snapshots before the catalog or any CMS HTTP request.
+    mode = financial_store.data_mode()
+    if mode != 'live':
+        stored = None
+        try:
+            stored = financial_store.lookup_rows(facility_id, year)
+        except financial_store.FinancialStoreUnavailable:
+            if mode == 'database_only':
+                raise CostReportUnavailableError(
+                    year, 'Financial snapshot database unavailable; no live fetch attempted.'
+                ) from None
+            logger.warning(
+                'Financial snapshot database unavailable; using explicit hybrid fallback.'
+            )
+        if stored is not None:
+            return stored
+        if mode == 'database_only':
+            raise CostReportUnavailableError(
+                year,
+                'Hospital/year is not covered by a completed import. Run the independent update job; this is not proof of no filing.',
+            )
+
     dataset_id = get_cost_report_datasets().get(year)
 
     if dataset_id is None:
@@ -273,8 +307,7 @@ def fetch_cost_report_rows(
 
         if response.status_code == 404:
             logger.warning(
-                "Cost report dataset %s (%d) returned 404; "
-                "refreshing CMS catalog",
+                "Cost report dataset %s (%d) returned 404; " "refreshing CMS catalog",
                 dataset_id,
                 year,
             )
@@ -329,10 +362,12 @@ def select_primary_row(rows: list[dict]) -> dict | None:
 
     return max(rows, key=score)
 
+
 # endregion
 
 
 # region Parsing
+
 
 def to_optional_float(value):
     """Parse numeric source text while preserving missing values as None."""
@@ -356,80 +391,36 @@ def parse_cost_report_row(
     row: dict,
     report_year: int | None = None,
 ) -> HospitalFinancialRecord:
+    """Parse source fields while preserving report dates and provenance."""
     return HospitalFinancialRecord(
         facility_id=row["Provider CCN"],
         hospital_name=row["Hospital Name"],
         fiscal_year_begin=row["Fiscal Year Begin Date"],
         fiscal_year_end=row["Fiscal Year End Date"],
         report_year=report_year,
-
-        net_patient_revenue=to_optional_float(
-            row.get("Net Patient Revenue")
-        ),
-
-        total_operating_expense=to_optional_float(
-            row.get("Less Total Operating Expense")
-        ),
-
-        net_income_from_service=to_optional_float(
-            row.get("Net Income from Service to Patients")
-        ),
-
-        net_income=to_optional_float(
-            row.get("Net Income")
-        ),
-
-        total_assets=to_optional_float(
-            row.get("Total Assets")
-        ),
-
-        total_liabilities=to_optional_float(
-            row.get("Total Liabilities")
-        ),
-
-        rural_versus_urban=row.get(
-            "Rural Versus Urban"
-        ),
-
-        number_of_beds=to_optional_float(
-            row.get("Number of Beds")
-        ),
-
-        total_days=to_optional_float(
-            row.get(
-                "Total Days (V + XVIII + XIX + Unknown)"
-            )
-        ),
-
-        total_bed_days_available=to_optional_float(
-            row.get("Total Bed Days Available")
-        ),
-
-        total_discharges=to_optional_float(
-            row.get(
-                "Total Discharges (V + XVIII + XIX + Unknown)"
-            )
-        ),
-
-        total_costs=to_optional_float(
-            row.get("Total Costs")
-        ),
-
-        cost_to_charge_ratio=to_optional_float(
-            row.get("Cost To Charge Ratio")
-        ),
-
-        uncompensated_care=to_optional_float(
-            row.get(
-                "Total Unreimbursed and Uncompensated Care"
-            )
-        ),
+        source_provenance=row.get('_source_provenance'),
+        net_patient_revenue=to_optional_float(row.get("Net Patient Revenue")),
+        total_operating_expense=to_optional_float(row.get("Less Total Operating Expense")),
+        net_income_from_service=to_optional_float(row.get("Net Income from Service to Patients")),
+        net_income=to_optional_float(row.get("Net Income")),
+        total_assets=to_optional_float(row.get("Total Assets")),
+        total_liabilities=to_optional_float(row.get("Total Liabilities")),
+        rural_versus_urban=row.get("Rural Versus Urban"),
+        number_of_beds=to_optional_float(row.get("Number of Beds")),
+        total_days=to_optional_float(row.get("Total Days (V + XVIII + XIX + Unknown)")),
+        total_bed_days_available=to_optional_float(row.get("Total Bed Days Available")),
+        total_discharges=to_optional_float(row.get("Total Discharges (V + XVIII + XIX + Unknown)")),
+        total_costs=to_optional_float(row.get("Total Costs")),
+        cost_to_charge_ratio=to_optional_float(row.get("Cost To Charge Ratio")),
+        uncompensated_care=to_optional_float(row.get("Total Unreimbursed and Uncompensated Care")),
     )
+
 
 # endregion
 
 
 # region Public API
+
 
 def get_financial_data_by_hospital(
     facility_id: str,
@@ -444,9 +435,7 @@ def get_financial_data_by_hospital(
     CostReportUnavailableError when no dataset could be reached.
     """
     if year is not None:
-        row = select_primary_row(
-            fetch_cost_report_rows(facility_id, year)
-        )
+        row = select_primary_row(fetch_cost_report_rows(facility_id, year))
         if row:
             return parse_cost_report_row(row, year)
         return None
@@ -477,6 +466,7 @@ def get_raw_financial_data_by_hospital(
     facility_id: str,
     year: int | None = None,
 ) -> list[dict]:
+    """Return raw reports for an explicit year or the newest retrieved year."""
     if year is not None:
         return fetch_cost_report_rows(facility_id, year)
 
@@ -501,10 +491,8 @@ def resolve_report_years(
     dataset years to query. Defaults to the most recent
     DEFAULT_TREND_SPAN_YEARS years.
     """
-    latest = get_latest_report_year()
-
     if end_year is None:
-        end_year = latest
+        end_year = get_latest_report_year()
 
     if start_year is None:
         start_year = end_year - DEFAULT_TREND_SPAN_YEARS + 1
@@ -513,10 +501,7 @@ def resolve_report_years(
         raise ValueError("start_year must not be after end_year")
 
     if end_year - start_year + 1 > MAX_TREND_SPAN_YEARS:
-        raise ValueError(
-            f"Year range too large; request at most "
-            f"{MAX_TREND_SPAN_YEARS} years"
-        )
+        raise ValueError(f"Year range too large; request at most " f"{MAX_TREND_SPAN_YEARS} years")
 
     return list(range(start_year, end_year + 1))
 
@@ -532,20 +517,20 @@ def get_financial_history_by_hospital(
     no report, or being unavailable (dataset could not be fetched).
     """
     # 1. Validate the requested interval and distinguish unsupported dataset years.
-    # 1. Validate the requested interval and distinguish unsupported dataset years.
     years = resolve_report_years(start_year, end_year)
     known_years = set(get_available_report_years())
 
     # 2. Keep each year independent: record, no matching report, or retrieval failure.
-    # 2. Keep each year independent: record, no matching report, or retrieval failure.
     def fetch_year(year: int):
         if year not in known_years:
             available = sorted(known_years)
+            coverage_label = 'CMS coverage'
+            if financial_store.data_mode() == 'database_only':
+                coverage_label = 'imported snapshot coverage'
             return (
                 year,
                 None,
-                f"outside CMS coverage "
-                f"({available[0]}-{available[-1]})",
+                f"outside {coverage_label} " f"({available[0]}-{available[-1]})",
             )
 
         try:
@@ -561,11 +546,12 @@ def get_financial_history_by_hospital(
         return year, parse_cost_report_row(row, year), None
 
     # 3. Bound concurrency; executor.map preserves the input year order.
-    # 3. Bound concurrency; executor.map preserves the input year order.
     workers = max(1, min(MAX_PARALLEL_YEAR_REQUESTS, len(years)))
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        outcomes = list(executor.map(fetch_year, years))
+        outcomes = []
+        for outcome in executor.map(fetch_year, years):
+            outcomes.append(outcome)
 
     result = FinancialHistoryResult(
         facility_id=facility_id.strip(),
@@ -573,7 +559,6 @@ def get_financial_history_by_hospital(
         records=[],
     )
 
-    # 4. Keep missing reports separate from unavailable datasets in the final history.
     # 4. Keep missing reports separate from unavailable datasets in the final history.
     for year, record, reason in outcomes:
         if record is not None:
@@ -610,5 +595,6 @@ def validate_financial_record(
         "is_complete": len(missing_fields) == 0,
         "missing_fields": missing_fields,
     }
+
 
 # endregion

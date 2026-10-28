@@ -11,7 +11,9 @@ from app.services.cms_service import get_hospital_by_id
 from app.utils.state_utils import get_state_fips
 
 from app.services.agent_progress import report_progress
-
+from app.services import reference_store
+from app.utils.state_utils import STATE_FIPS
+from app.services.cms_service import normalize_county
 
 load_dotenv()
 
@@ -25,14 +27,12 @@ COUNTY_DEMOGRAPHICS_CACHE = TTLCache(
 _COUNTY_DEMOGRAPHICS_CACHE_LOCK = threading.Lock()
 
 # See https://api.census.gov/data/2024/acs/acs5/profile/variables.html.
-CENSUS_API_URL = (
-    "https://api.census.gov/data/2024/"
-    "acs/acs5/profile"
-)
+CENSUS_API_URL = "https://api.census.gov/data/2024/" "acs/acs5/profile"
 
-CENSUS_API_KEY = os.getenv(
-    "CENSUS_API_KEY"
-)
+CENSUS_API_KEY = os.getenv("CENSUS_API_KEY")
+
+
+# County demographic evidence
 
 
 def get_county_demographics(
@@ -49,14 +49,29 @@ def get_county_demographics(
     - percent age 65+
     """
 
-    if not CENSUS_API_KEY:
-        raise ValueError(
-            "CENSUS_API_KEY is not configured."
-        )
+    # Stored county estimates do not require a request-time Census API key.
+    if reference_store.data_mode() != 'live':
+        state_code = None
+        for code, fips in STATE_FIPS.items():
+            if fips == state_fips.strip():
+                state_code = code
+                break
+        if state_code is None:
+            raise ValueError('Unsupported state FIPS.')
+        snapshot = reference_store.read_snapshot('county_demographics', state_code)
+        if snapshot is not None:
+            raw = snapshot['records'].get(normalize_county(county_name))
+            if raw is None:
+                return None
+            result = deepcopy(raw)
+            result.pop('_raw_record', None)
+            result['data_provenance'] = snapshot['data_provenance']
+            return result
 
-    normalized_county = (
-        county_name.strip().upper()
-    )
+    if not CENSUS_API_KEY:
+        raise ValueError("CENSUS_API_KEY is not configured.")
+
+    normalized_county = county_name.strip().upper()
     if normalized_county.endswith(" COUNTY"):
         normalized_county = normalized_county[:-7].strip()
 
@@ -104,15 +119,11 @@ def get_county_demographics(
 
     for row in rows[1:]:
 
-        data = dict(
-            zip(headers, row)
-        )
+        data = {}
+        for header, value in zip(headers, row):
+            data[header] = value
 
-        census_name = (
-            data["NAME"]
-            .split(",")[0]
-            .upper()
-        )
+        census_name = data["NAME"].split(",")[0].upper()
 
         # Census county names include the "County" suffix, while callers
         # may pass county names without it.
@@ -120,45 +131,17 @@ def get_county_demographics(
         if census_county_name.endswith(" COUNTY"):
             census_county_name = census_county_name[:-7].strip()
 
-        if (
-            census_county_name
-            != normalized_county
-        ):
+        if census_county_name != normalized_county:
             continue
 
         data = {
-            "county":
-                normalized_county,
-
-            "state_fips":
-                normalized_state_fips,
-
-            "total_population":
-                int(
-                    data[
-                        CENSUS_FIELDS.TOTAL_POPULATION_FIELD
-                    ]
-                ),
-
-            "population_65_plus":
-                int(
-                    data[
-                        CENSUS_FIELDS.AGE_65_PLUS_FIELD
-                    ]
-                ),
-
-            "population_65_plus_percent":
-                float(
-                    data[
-                        CENSUS_FIELDS.AGE_65_PLUS_PERCENT_FIELD
-                    ]
-                ),
-
-            "source":
-                "U.S. Census Bureau ACS 2024 5-Year",
-
-            "dataset":
-                "ACS Demographic and Housing Estimates",
+            "county": normalized_county,
+            "state_fips": normalized_state_fips,
+            "total_population": int(data[CENSUS_FIELDS.TOTAL_POPULATION_FIELD]),
+            "population_65_plus": int(data[CENSUS_FIELDS.AGE_65_PLUS_FIELD]),
+            "population_65_plus_percent": float(data[CENSUS_FIELDS.AGE_65_PLUS_PERCENT_FIELD]),
+            "source": "U.S. Census Bureau ACS 2024 5-Year",
+            "dataset": "ACS Demographic and Housing Estimates",
         }
 
         # Store a separate copy so the returned object remains independent.
@@ -168,6 +151,9 @@ def get_county_demographics(
         return data
 
     return None
+
+
+# Hospital-to-county resolution
 
 
 def get_hospital_demographics(
@@ -183,24 +169,17 @@ def get_hospital_demographics(
 
     # Look up the hospital so its state and county do not need to be
     # supplied separately.
-    hospital = get_hospital_by_id(
-        facility_id
-    )
+    hospital = get_hospital_by_id(facility_id)
 
     if hospital is None:
         return None
-
 
     # County demographics cannot be queried without the hospital's county.
     if not hospital.countyparish:
         return {
             "facility_id": facility_id,
-            "error": (
-                "County information is unavailable "
-                "for this hospital."
-            ),
+            "error": ("County information is unavailable " "for this hospital."),
         }
-
 
     # Census uses the numeric state FIPS code rather than a state
     # abbreviation such as "WV".
@@ -208,7 +187,8 @@ def get_hospital_demographics(
         state_fips = get_state_fips(hospital.state)
         # Reuse the county-level lookup, including its cache.
         demographics = get_county_demographics(
-            state_fips=state_fips, county_name=hospital.countyparish,
+            state_fips=state_fips,
+            county_name=hospital.countyparish,
         )
     except (ValueError, requests.RequestException) as error:
         return {
@@ -219,26 +199,16 @@ def get_hospital_demographics(
     if demographics is None:
         return {
             "facility_id": facility_id,
-            "error": (
-                "Census demographics were not found "
-                "for the hospital's county."
-            ),
+            "error": ("Census demographics were not found " "for the hospital's county."),
         }
 
-
     # Include hospital identifiers alongside the county-level estimates.
-    return {
-        "facility_id":
-            hospital.facility_id,
+    hospital_demographics = {}
+    hospital_demographics['facility_id'] = hospital.facility_id
+    hospital_demographics['facility_name'] = hospital.facility_name
+    hospital_demographics['state'] = hospital.state
+    hospital_demographics['county'] = hospital.countyparish
+    for copied_key, copied_value in (demographics).items():
+        hospital_demographics[copied_key] = copied_value
 
-        "facility_name":
-            hospital.facility_name,
-
-        "state":
-            hospital.state,
-
-        "county":
-            hospital.countyparish,
-
-        **demographics,
-    }
+    return hospital_demographics

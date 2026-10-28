@@ -1,5 +1,14 @@
 """Small factual metadata for the UI; exclude full records and model reasoning."""
+
 import json
+
+
+def _format_years(years):
+    """Join report years without compact iterator expressions."""
+    labels = []
+    for year in years:
+        labels.append(str(year))
+    return ', '.join(labels)
 
 
 def evidence_summary(output):
@@ -16,14 +25,26 @@ def evidence_summary(output):
     if raw.get('report_kind') == 'methodology_retrieval':
         cards = []
         for passage in raw.get('passages', []):
-            cards.append({'key': passage['passage_id'], 'label': 'Methodology: ' + passage['title'],
-                          'status': 'available', 'source': passage['url'],
-                          'period': passage['retrieved_at'][:10],
-                          'details': 'Document snapshot retrieval date; publication date may be unknown. Not hospital-specific evidence.'})
+            cards.append(
+                {
+                    'key': passage['passage_id'],
+                    'label': 'Methodology: ' + passage['title'],
+                    'status': 'available',
+                    'source': passage['url'],
+                    'period': passage['retrieved_at'][:10],
+                    'details': 'Document snapshot retrieval date; publication date may be unknown. Not hospital-specific evidence.',
+                }
+            )
         if not cards:
-            cards.append({'key': 'methodology', 'label': 'Methodology retrieval',
-                          'status': 'unavailable', 'source': 'Local reviewed corpus',
-                          'details': raw.get('error') or 'No matching supporting passage found.'})
+            cards.append(
+                {
+                    'key': 'methodology',
+                    'label': 'Methodology retrieval',
+                    'status': 'unavailable',
+                    'source': 'Local reviewed corpus',
+                    'details': raw.get('error') or 'No matching supporting passage found.',
+                }
+            )
         return cards
     # Area coverage is a separate card, never a single-hospital evidence summary.
     if raw.get('report_kind') == 'area_healthcare_access':
@@ -31,25 +52,32 @@ def evidence_summary(output):
         status = raw.get('status', 'unavailable')
         if status == 'complete':
             status = 'available'
-        return [{
-            'key': 'area_access', 'label': 'Area healthcare-access coverage',
-            'status': status,
-            'source': 'CMS Hospital General Information / Cost Reports; Census ACS; HRSA',
-            'period': str(raw.get('classification', {}).get('dataset_year') or 'Not applied'),
-            'details': (
-                f"Selected hospitals: {coverage.get('selected_hospital_count', 0)}; "
-                f"unknown rural classification: {coverage.get('unknown_classification_count', 0)}. "
-                'County evidence covers represented counties only; distances are same-state straight-line miles.'
-            ),
-        }]
+        return [
+            {
+                'key': 'area_access',
+                'label': 'Area healthcare-access coverage',
+                'status': status,
+                'source': 'CMS Hospital General Information / Cost Reports; Census ACS; HRSA',
+                'period': str(raw.get('classification', {}).get('dataset_year') or 'Not applied'),
+                'details': (
+                    f"Selected hospitals: {coverage.get('selected_hospital_count', 0)}; "
+                    f"unknown rural classification: {coverage.get('unknown_classification_count', 0)}. "
+                    'County evidence covers represented counties only; distances are same-state straight-line miles.'
+                ),
+            }
+        ]
     # Historical references have a source date, not verified current coverage.
     if raw.get('directory_kind') == 'historical_tribal_facilities':
-        return [{
-            'key': 'tribal_directory', 'label': 'Historical tribal facility directory',
-            'status': 'partial', 'source': raw['source'],
-            'period': raw['source_created_date'],
-            'details': 'Historical source only; current operation, certification and affiliation are unverified. See cited PDF pages in the answer.',
-        }]
+        return [
+            {
+                'key': 'tribal_directory',
+                'label': 'Historical tribal facility directory',
+                'status': 'partial',
+                'source': raw['source'],
+                'period': raw['source_created_date'],
+                'details': 'Historical source only; current operation, certification and affiliation are unverified. See cited PDF pages in the answer.',
+            }
+        ]
     # 2. Prefix comparison cards by CCN so the two hospitals cannot overwrite each other.
     if 'hospital_reports' in raw and 'financial_alignment' in raw:
         combined = []
@@ -72,14 +100,20 @@ def evidence_summary(output):
             alignment_status = 'partial'
         alignment_details = alignment['note']
         if not good:
-            alignment_details += ' Fiscal dates differ or are unavailable; no direct differences calculated.'
-        combined.insert(0, {
-            'key': 'comparison_alignment', 'label': 'Financial report alignment',
-            'status': alignment_status,
-            'source': 'CMS Hospital Provider Cost Report',
-            'period': str(alignment.get('common_report_year') or 'No common year retrieved'),
-            'details': alignment_details,
-        })
+            alignment_details += (
+                ' Fiscal dates differ or are unavailable; no direct differences calculated.'
+            )
+        combined.insert(
+            0,
+            {
+                'key': 'comparison_alignment',
+                'label': 'Financial report alignment',
+                'status': alignment_status,
+                'source': 'CMS Hospital Provider Cost Report',
+                'period': str(alignment.get('common_report_year') or 'No common year retrieved'),
+                'details': alignment_details,
+            },
+        )
         return combined
     rows = []
 
@@ -89,7 +123,17 @@ def evidence_summary(output):
             return
         available = data.get('available', 'error' not in data)
         gaps = []
-        alerts = data.get('quality_warnings', []) + data.get('indicators', {}).get('quality_warnings', [])
+        provenance_notes = []
+        provenance = data.get('data_provenance') or data.get('source_provenance')
+        if provenance:
+            provenance_notes.append(
+                'Stored CMS snapshot retrieved '
+                + str(provenance.get('source_retrieved_at', 'unknown'))[:10]
+                + '; not a live CMS freshness check'
+            )
+        alerts = data.get('quality_warnings', []) + data.get('indicators', {}).get(
+            'quality_warnings', []
+        )
         for alert in alerts:
             gaps.append(alert['message'])
         missing = data.get('missing_fields') or data.get('indicators', {}).get('missing_fields')
@@ -99,14 +143,16 @@ def evidence_summary(output):
                 field_names.append(str(field_name))
             gaps.append('Missing fields: ' + ', '.join(field_names))
         if data.get('years_without_report'):
-            gaps.append('No matching report: ' + ', '.join(map(str, data['years_without_report'])))
+            gaps.append('No matching report: ' + _format_years(data['years_without_report']))
         if data.get('years_unavailable'):
-            gaps.append('Unavailable years: ' + ', '.join(map(str, data['years_unavailable'])))
+            gaps.append('Unavailable years: ' + _format_years(data['years_unavailable']))
         skipped = data.get('skipped_geocoding_count', 0)
         if skipped:
             gaps.append(f'{skipped} hospitals excluded from coordinate ranking')
         if key == 'distance_analysis':
-            gaps.append('Same-state candidates; straight-line miles; capacity and eligibility not assessed')
+            gaps.append(
+                'Same-state candidates; straight-line miles; capacity and eligibility not assessed'
+            )
             if available and not data.get('nearest_hospitals'):
                 gaps.append('No hospitals could be ranked from available coordinates')
         # Missing data is distinct from a negative clinical or financial finding.
@@ -116,27 +162,40 @@ def evidence_summary(output):
             status = 'partial'
         else:
             status = 'available'
-        row = {'key': key, 'label': label,
-               'status': status,
-               'source': str(data.get('source') or source or 'See analysis')[:200]}
+        row = {
+            'key': key,
+            'label': label,
+            'status': status,
+            'source': str(data.get('source') or source or 'See analysis')[:200],
+        }
         if available and skipped:
             row['status'] = 'partial'
         if data.get('report_year') is not None:
             row['period'] = str(data['report_year'])
         elif data.get('years_with_data'):
-            row['period'] = ', '.join(map(str, data['years_with_data']))
+            row['period'] = _format_years(data['years_with_data'])
         if data.get('fiscal_year_begin') and data.get('fiscal_year_end'):
             row['fiscal_period'] = f"{data['fiscal_year_begin']} – {data['fiscal_year_end']}"
         if data.get('error'):
             gaps.append(str(data['error'])[:250])
-        if gaps:
-            row['details'] = '; '.join(gaps)[:700]
+        if gaps or provenance_notes:
+            row['details'] = '; '.join(gaps + provenance_notes)[:700]
         rows.append(row)
 
     # 4. Unwrap full investigations; standalone financial tools remain supported.
     if 'financials' in raw:
-        add('financials', 'Latest financial report', raw['financials'], 'CMS Hospital Provider Cost Report')
-        add('financial_trend', 'Financial trend', raw.get('financial_trend'), 'CMS Hospital Provider Cost Report')
+        add(
+            'financials',
+            'Latest financial report',
+            raw['financials'],
+            'CMS Hospital Provider Cost Report',
+        )
+        add(
+            'financial_trend',
+            'Financial trend',
+            raw.get('financial_trend'),
+            'CMS Hospital Provider Cost Report',
+        )
         access = raw.get('healthcare_access', {})
         if not access.get('available'):
             add('healthcare_access', 'Healthcare access', access, 'CMS / Census / HRSA')
@@ -153,8 +212,12 @@ def evidence_summary(output):
         }
         if raw.get('county_comparison_error'):
             county_comparison['error'] = raw['county_comparison_error']
-        add('county_comparison', 'Same-county hospital comparison',
-            county_comparison, 'CMS Hospital General Information')
+        add(
+            'county_comparison',
+            'Same-county hospital comparison',
+            county_comparison,
+            'CMS Hospital General Information',
+        )
     # 6. Retain independent county, shortage, distance and address evidence cards.
     for key, label, source in (
         ('county_demographics', 'County demographics', 'U.S. Census Bureau ACS'),

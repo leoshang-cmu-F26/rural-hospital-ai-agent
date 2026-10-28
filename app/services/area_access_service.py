@@ -22,7 +22,12 @@ def _available(call, *args, **kwargs):
             return {'available': False, 'error': 'No record returned.'}
         if 'error' in value:
             return {'available': False, 'error': value['error']}
-        return {'available': True, **value}
+        available_section = {}
+        available_section['available'] = True
+        for copied_key, copied_value in (value).items():
+            available_section[copied_key] = copied_value
+
+        return available_section
     except Exception as error:
         return {'available': False, 'error': str(error)}
 
@@ -42,7 +47,6 @@ def analyze_area_access(state, county=None, rural_only=True, year=None, zip_code
     county_key = None
     if county is not None:
         county_key = normalize_county(county)
-
 
     if year is not None and (isinstance(year, bool) or not isinstance(year, int) or year < 2011):
         raise ValueError('year must be an integer CMS dataset year from 2011 onward.')
@@ -103,7 +107,12 @@ def analyze_area_access(state, county=None, rural_only=True, year=None, zip_code
             else:
                 urban_count += 1
         except Exception as error:
-            unknown.append({**identity, 'reason': str(error)})
+            unclassified_hospital = {}
+            for copied_key, copied_value in (identity).items():
+                unclassified_hospital[copied_key] = copied_value
+            unclassified_hospital['reason'] = str(error)
+
+            unknown.append(unclassified_hospital)
 
     # 3. Geocode the state once, including urban/out-of-county alternative hospitals.
     coordinates = {}
@@ -133,20 +142,30 @@ def analyze_area_access(state, county=None, rural_only=True, year=None, zip_code
             if key not in counties:
                 report_progress(f'Retrieving county evidence for {label}, {state_code}…')
                 counties[key] = {
-                    'county': label, 'state': state_code,
+                    'county': label,
+                    'state': state_code,
                     'demographics': _available(get_hospital_demographics, facility_id),
-                    'primary_care_hpsa': _available(get_county_primary_care_hpsa, state=state_code, county=label),
+                    'primary_care_hpsa': _available(
+                        get_county_primary_care_hpsa, state=state_code, county=label
+                    ),
                 }
         other_count = None
         if key is not None:
             other_count = 0
             for candidate in state_rows:
                 candidate_county = candidate.get('countyparish')
-                if candidate['facility_id'] != facility_id and candidate_county and normalize_county(candidate_county) == key:
+                if (
+                    candidate['facility_id'] != facility_id
+                    and candidate_county
+                    and normalize_county(candidate_county) == key
+                ):
                     other_count += 1
 
         # 5. Rank all geocoded same-state alternatives locally, outside the model.
-        distance = {'available': False, 'error': coordinate_errors.get(facility_id, 'Coordinates unavailable.')}
+        distance = {
+            'available': False,
+            'error': coordinate_errors.get(facility_id, 'Coordinates unavailable.'),
+        }
         origin = coordinates.get(facility_id)
         if origin:
             neighbors = []
@@ -155,26 +174,40 @@ def analyze_area_access(state, county=None, rural_only=True, year=None, zip_code
                 point = coordinates.get(candidate_id)
                 if candidate_id == facility_id or point is None:
                     continue
-                neighbors.append({
-                    'facility_id': candidate_id, 'facility_name': candidate['facility_name'],
-                    'city': candidate.get('citytown'),
-                    'distance_miles': calculate_distance_miles(origin['latitude'], origin['longitude'], point['latitude'], point['longitude']),
-                })
+                neighbors.append(
+                    {
+                        'facility_id': candidate_id,
+                        'facility_name': candidate['facility_name'],
+                        'city': candidate.get('citytown'),
+                        'distance_miles': calculate_distance_miles(
+                            origin['latitude'],
+                            origin['longitude'],
+                            point['latitude'],
+                            point['longitude'],
+                        ),
+                    }
+                )
             neighbors.sort(key=lambda item: item['distance_miles'])
             distance = {
-                'available': True, 'candidate_count': len(neighbors),
+                'available': True,
+                'candidate_count': len(neighbors),
                 'skipped_geocoding_count': len(coordinate_errors),
                 'nearest_hospitals': neighbors[:5],
             }
             distance_available_count += 1
             if neighbors:
                 nearest_distances.append(neighbors[0]['distance_miles'])
-        reports.append({
-            'facility_id': facility_id, 'facility_name': row['facility_name'],
-            'city': row.get('citytown'), 'zip_code': row.get('zip_code'), 'county_key': key,
-            'other_same_county_hospital_count': other_count,
-            'distance_analysis': distance,
-        })
+        reports.append(
+            {
+                'facility_id': facility_id,
+                'facility_name': row['facility_name'],
+                'city': row.get('citytown'),
+                'zip_code': row.get('zip_code'),
+                'county_key': key,
+                'other_same_county_hospital_count': other_count,
+                'distance_analysis': distance,
+            }
+        )
 
     # 6. Summarize coverage explicitly; empty/partial cohorts are not statewide conclusions.
     partial = bool(unknown or coordinate_errors)
@@ -182,26 +215,45 @@ def analyze_area_access(state, county=None, rural_only=True, year=None, zip_code
         if report['county_key'] is None:
             partial = True
     for evidence in counties.values():
-        if not evidence['demographics']['available'] or not evidence['primary_care_hpsa']['available']:
+        if (
+            not evidence['demographics']['available']
+            or not evidence['primary_care_hpsa']['available']
+        ):
             partial = True
     nearest_summary = None
     if nearest_distances:
-        nearest_summary = {'hospital_count': len(nearest_distances), 'median_miles': median(nearest_distances),
-                           'min_miles': min(nearest_distances), 'max_miles': max(nearest_distances)}
+        nearest_summary = {
+            'hospital_count': len(nearest_distances),
+            'median_miles': median(nearest_distances),
+            'min_miles': min(nearest_distances),
+            'max_miles': max(nearest_distances),
+        }
     status = 'complete'
     if partial:
         status = 'partial'
     return {
-        'report_kind': 'area_healthcare_access', 'status': status,
-        'area': {'state': state_code, 'county': county_key, 'zip_code': zip_key}, 'rural_only': rural_only,
-        'classification': {'source': 'CMS Hospital Provider Cost Report: Rural Versus Urban',
-                           'dataset_year': classification_year, 'rule': 'R = rural; U = urban; other/missing = unknown',
-                           'applied': rural_only},
-        'coverage': {'state_hospital_count': len(state_rows), 'area_hospital_count': len(targets),
-                     'selected_hospital_count': len(selected), 'excluded_urban_count': urban_count,
-                     'unknown_classification_count': len(unknown), 'represented_county_count': len(counties),
-                     'distance_available_count': distance_available_count},
-        'unknown_classification': unknown, 'counties': counties, 'hospitals': reports,
+        'report_kind': 'area_healthcare_access',
+        'status': status,
+        'area': {'state': state_code, 'county': county_key, 'zip_code': zip_key},
+        'rural_only': rural_only,
+        'classification': {
+            'source': 'CMS Hospital Provider Cost Report: Rural Versus Urban',
+            'dataset_year': classification_year,
+            'rule': 'R = rural; U = urban; other/missing = unknown',
+            'applied': rural_only,
+        },
+        'coverage': {
+            'state_hospital_count': len(state_rows),
+            'area_hospital_count': len(targets),
+            'selected_hospital_count': len(selected),
+            'excluded_urban_count': urban_count,
+            'unknown_classification_count': len(unknown),
+            'represented_county_count': len(counties),
+            'distance_available_count': distance_available_count,
+        },
+        'unknown_classification': unknown,
+        'counties': counties,
+        'hospitals': reports,
         'nearest_distance_summary': nearest_summary,
         'limitations': [
             'Rural eligibility is based on the selected cost-report year, not an independent geographic rural definition; unknown classifications are excluded and disclosed.',

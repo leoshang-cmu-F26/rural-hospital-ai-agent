@@ -8,7 +8,6 @@ from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from app.tools.agent_tools import HOSPITAL_AGENT_TOOLS
 
-
 load_dotenv()
 
 
@@ -21,6 +20,23 @@ model = ChatOpenAI(
 
 # region SYSTEM PROMPT
 SYSTEM_PROMPT = """
+FINANCIAL SNAPSHOT PROVENANCE
+When data_provenance/source_provenance indicates postgresql_snapshot, describe
+financial values as imported CMS snapshots with their actual report year and
+source_retrieved_at/imported_at dates. Do not claim a live CMS freshness check.
+In database_only mode, latest/default trend years mean completed imported years,
+not necessarily the latest CMS publication. Not-imported coverage and database
+outages are not proof of absent filings. Ask for the independent update/import
+job rather than retrying network calls through other tools. CMS/Census/HRSA
+access evidence may still use their existing online sources; this change covers
+financial reports unless reference snapshots are configured too. For stored
+reference evidence, report source dates: HPSA designated status is as of its
+snapshot, not a guaranteed current designation. County ACS remains the specified
+published year. In reference database-only mode, require state for name searches
+rather than treating the imported WI/WY directories as a complete national list.
+Coordinates marked unavailable stay excluded; do not invent matches or imply
+complete distance coverage.
+
 DATA QUALITY AND RURAL CLASSIFICATION
 Always report a returned rural_classification with its report year. If status
 is urban or is_rural is false, explicitly tell the user that CMS classifies this
@@ -505,7 +521,11 @@ hospital_agent = create_agent(
 
 
 def ask_hospital_agent(
-    message: str, callbacks=None, history=None, current_facility=None, comparison_facilities=None,
+    message: str,
+    callbacks=None,
+    history=None,
+    current_facility=None,
+    comparison_facilities=None,
 ) -> str:
     """Build bounded messages and invoke the shared agent with request-local callbacks."""
     # Merge bounded dialogue/identities and attach this request's public callbacks.

@@ -1,4 +1,5 @@
 """Request-local, public progress events; never expose model reasoning."""
+
 from contextvars import ContextVar
 from app.services.chat_context import extract_facility, extract_comparison
 from langchain_core.callbacks import BaseCallbackHandler
@@ -17,6 +18,8 @@ def report_progress(message):
 
 
 class ToolProgressHandler(BaseCallbackHandler):
+    """Publish public tool activity, evidence and interpretation notices."""
+
     def __init__(self, sink):
         self.sink = sink
 
@@ -38,8 +41,12 @@ class ToolProgressHandler(BaseCallbackHandler):
             'analyze_facility_access_by_address': 'Resolving the supplied facility address…',
             'get_hospital_demographics': 'Querying county population estimates…',
         }
-        self.sink({'type': 'progress', 'message': messages.get(
-            (serialized or {}).get('name'), 'Retrieving evidence…')})
+        self.sink(
+            {
+                'type': 'progress',
+                'message': messages.get((serialized or {}).get('name'), 'Retrieving evidence…'),
+            }
+        )
 
     def on_tool_end(self, output, **kwargs):
         # Tool completion can update evidence cards and the active identity/pair.
@@ -59,4 +66,9 @@ class ToolProgressHandler(BaseCallbackHandler):
         self.sink({'type': 'progress', 'message': 'Reviewing results and preparing the next step…'})
 
     def on_tool_error(self, error, **kwargs):
-        self.sink({'type': 'progress', 'message': 'A data lookup failed; checking whether analysis can continue…'})
+        self.sink(
+            {
+                'type': 'progress',
+                'message': 'A data lookup failed; checking whether analysis can continue…',
+            }
+        )
