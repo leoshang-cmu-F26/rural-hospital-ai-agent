@@ -77,9 +77,34 @@ main {
 }
 
 /* Example questions and message input controls. */
+.quick-actions {
+    border-top: 1px solid #eee;
+}
+
+.quick-actions > summary {
+    padding: 10px 20px;
+    cursor: pointer;
+    color: #444;
+    font-size: 13px;
+}
+
+.quick-actions > summary:focus-visible {
+    outline: 2px solid #47746b;
+    outline-offset: -3px;
+}
+
+/* Match the label to the native disclosure state without JavaScript. */
+.quick-actions .quick-actions-hide,
+.quick-actions[open] .quick-actions-show {
+    display: none;
+}
+
+.quick-actions[open] .quick-actions-hide {
+    display: inline;
+}
+
 .examples {
     padding: 12px 20px;
-    border-top: 1px solid #eee;
     display: flex;
     gap: 8px;
     flex-wrap: wrap;

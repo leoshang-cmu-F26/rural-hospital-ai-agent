@@ -6,7 +6,7 @@
 
     <title>Rural Hospital AI Agent</title>
 
-    <link rel="stylesheet" href="./style.css?v=20261026-quality-rag">
+    <link rel="stylesheet" href="./style.css?v=20261029-quick-actions">
 </head>
 
 <body>
@@ -40,6 +40,12 @@
         </div>
 
 
+        <!-- Collapse all shortcuts while keeping the message input available. -->
+        <details class="quick-actions" open>
+            <summary>
+                <span class="quick-actions-hide">Hide quick actions</span>
+                <span class="quick-actions-show">Show quick actions</span>
+            </summary>
         <!-- Examples fill the input; Clear chat resets identity and history. -->
         <div class="examples">
             <button class="example-button" onclick="useExample('Investigate Mile Bluff Medical Center in Juneau County, Wisconsin. Include financials, trends, healthcare access and data gaps.')">Full hospital investigation</button>
@@ -55,6 +61,7 @@
             <button class="example-button" onclick="useExample('Show financial comparison bar charts for Mile Bluff Medical Center in Mauston, WI, Reedsburg Area Medical Center in Reedsburg, WI, and Tomah Memorial Hospital in Tomah, WI. Use a common CMS report year and explain fiscal alignment.')">Hospital comparison chart</button>
             <button class="example-button clear-button" onclick="clearChat()">Clear chat</button>
         </div>
+        </details>
 
         <!-- Disable submission while a streamed request is still running. -->
         <div class="input-area">
