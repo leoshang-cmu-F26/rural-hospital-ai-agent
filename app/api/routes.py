@@ -94,6 +94,31 @@ def search_hospitals(name: str, state: str | None = None, county: str | None = N
         raise HTTPException(status_code=400, detail=str(error))
 
 
+@router.get("/hospitals/rural")
+def rural_hospitals(
+    state: str,
+    county: str | None = None,
+    zip_code: str | None = Query(default=None, pattern=r"^[0-9]{5}$"),
+    limit: int = Query(default=5, ge=1, le=50),
+    year: int | None = Query(default=None, ge=2011, le=2100),
+):
+    """Return a compact rural list without running healthcare-access analysis."""
+    from app.services.rural_hospital_service import list_rural_hospitals
+    from app.services.financial_store import FinancialStoreUnavailable
+    import requests
+
+    try:
+        return list_rural_hospitals(state, county, zip_code, limit, year)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    except (
+        FinancialStoreUnavailable,
+        CostReportUnavailableError,
+        requests.RequestException,
+    ) as error:
+        raise HTTPException(status_code=503, detail=str(error))
+
+
 @router.get("/hospitals/{facility_id}", response_model=Hospital)
 def get_hospital(facility_id: str):
     """Return the requested CMS hospital or an explicit not-found response."""
@@ -274,7 +299,8 @@ def get_hospital_financial_trend(
             status_code=404,
             detail={
                 "message": (
-                    "No cost report data found for this hospital " "in the requested years"
+                    "No cost report data found for this hospital "
+                    "in the requested years"
                 ),
                 "years_requested": history.years_requested,
                 "years_without_report": history.years_without_report,
@@ -335,7 +361,8 @@ def chat_with_agent(request: AgentRequest):
         raise HTTPException(
             status_code=502,
             detail=(
-                "The AI agent could not complete the request: " f"{type(error).__name__}: {error}"
+                "The AI agent could not complete the request: "
+                f"{type(error).__name__}: {error}"
             ),
         )
 

@@ -1,17 +1,17 @@
-# Wisconsin and Wyoming reference snapshots
+# California, Wisconsin and Wyoming reference snapshots
 
 ## Imported scope
 
-The database now contains current source snapshots for both WI and WY, alongside
+The database now contains current source snapshots for CA, WI and WY, alongside
 their 2020–2024 financial cost reports. These dates are different concepts:
 
-- Financial reports: dataset years 2020–2024, 753 WI rows and 147 WY rows.
-- Hospital directory: 140 WI hospitals and 31 WY hospitals at import time.
-- Census: ACS **2024 5-Year** county estimates, 72 WI counties and 23 WY counties.
-- HRSA: 481 WI and 32 WY primary-care source features, as of the import snapshot.
+- Financial reports: dataset years 2020–2024, 2,059 CA rows, 753 WI rows and 147 WY rows (2,959 total).
+- Hospital directory: 377 CA hospitals, 140 WI hospitals and 31 WY hospitals at import time.
+- Census: ACS **2024 5-Year** county estimates, 58 CA counties, 72 WI counties and 23 WY counties (153 total).
+- HRSA: 2,179 CA, 481 WI and 32 WY primary-care source features, as of the import snapshot.
   These are source rows, not a count of unique active county-wide designations.
-- Coordinates: 122/140 WI hospitals and 25/31 WY hospitals have verified coordinates.
-  The other 24 hospitals remain explicitly unavailable; no locations were guessed.
+- Coordinates: 336/377 CA, 122/140 WI and 25/31 WY hospitals have verified coordinates.
+  The other 65 hospitals remain explicitly unavailable; no locations were guessed.
 
 Coordinate matches reused the existing SQLite cache only when the address/city/
 state/ZIP still matched the hospital record. Cached points retain their SQLite
@@ -48,7 +48,7 @@ Local configuration was updated; Render must be configured/deployed separately.
 In reference database-only mode:
 
 1. State directories and hospital CCNs come from PostgreSQL.
-2. Hospital name lookup requires a state, rather than claiming that WI/WY is a
+2. Hospital name lookup requires a state, rather than claiming that these three states are a
    complete national registry. Unimported CCNs/states are unknown, not nonexistent.
 3. County Census results do not need a request-time Census API key.
 4. HPSA summaries reuse the existing rules over complete stored state features.
@@ -66,7 +66,7 @@ reference indexes; this migration does not turn them into tribal financial repor
 ## Refresh command
 
 ```bash
-python -m scripts.import_reference_data --states WI WY --init-db
+python -m scripts.import_reference_data --states CA WI WY --init-db
 ```
 
 The directory import verifies complete CMS pagination. Census makes one all-county
@@ -80,7 +80,7 @@ not silently run as part of a chat request. No recurring schedule has been creat
 To refresh only directory/Census/HPSA while keeping existing coordinates:
 
 ```bash
-python -m scripts.import_reference_data --states WI WY --skip-coordinates
+python -m scripts.import_reference_data --states CA WI WY --skip-coordinates
 ```
 
 Financial release/revision checks are separate:
@@ -112,7 +112,7 @@ WHERE c.kind = 'hospital_coordinates' AND c.state = 'WY'
 
 ## Capacity assessment before nationwide import
 
-After the two-state import, all application tables/indexes occupy about **4.2 MB**
+At the earlier two-state checkpoint, all application tables/indexes occupy about **4.2 MB**
 (excluding the rest of the Supabase project's baseline storage). Active revisions
 and failed/import-audit history can grow this footprint.
 
@@ -138,3 +138,70 @@ HTTP and successfully ran Mile Bluff's full investigation (including 2020–2024
 financials) and Wyoming's statewide rural access analysis. Five-year financial
 coverage for a Wyoming hospital was also verified. Live model text generation
 was not part of these checks.
+
+## Expanded county statistics (2026-10-27)
+
+All 153 counties have `acs_measures` and `health_workforce` inside the active
+`county_demographics` JSONB payload. No new public table or schema migration is
+needed. Runtime demographic/access tools return these fields; standalone county
+questions use `get_county_health_context(state, county)`.
+
+ACS 2024 5-Year estimates cover 2020–2024. Fields include population, age 65+
+count/percent, civilian noninstitutionalized insurance population, insured and
+uninsured count/percent, public insurance percent, poverty percent and median
+household income in 2024 dollars. Every metric retains its Census variable,
+universe, estimate, 90% MOE, units, raw values and missing-value status. Percentage
+MOEs are percentage points. Controlled estimate MOEs are null and explicitly
+marked not applicable; missing/suppressed values never become zero. Public health
+insurance is not a Medicare/Medicaid enrollment count; public/private categories
+can overlap. Poverty has its own applicable population denominator.
+
+AHRF release 2024–2025 contributes active MD/DO physicians, non-federal
+primary-care patient-care physicians excluding residents/age 75+, professionally
+active dentists (all 2023), and NPI-registered nurse practitioners and physician
+assistants (2024). Rates per 100,000 use the Census population estimate for the
+same count year from AHRF. Both numerator/denominator variables and years are
+stored. The inverse residents-per-provider rate is null for zero providers.
+Categories overlap and cannot be summed. These are county counts, not hospital
+FTEs, clinical capacity or confirmation that providers accept new patients.
+
+AHRF ZIP and technical documentation are cached under ignored `data/imports/`;
+only the selected three-state county metrics are stored in PostgreSQL. The release
+URL is pinned to 2024–2025; a new AHRF release requires reviewing field definitions
+and updating that mapping. A reference refresh joins ACS and AHRF by county FIPS
+and publishes only after complete county coverage is verified. Source failures
+leave the previous active county snapshot intact.
+
+Rural eligibility continues to use the selected-year CMS cost-report
+`Rural Versus Urban` indicator (R/U in the imported data), never USDA RUCC,
+county population size, or AHRF geographic codes. CMS payment classifications can
+differ from geographic rurality, including urban hospitals reclassified as rural.
+
+Sources:
+
+- [ACS DP03 definitions](https://api.census.gov/data/2024/acs/acs5/profile/groups/DP03.html)
+- [ACS DP05 definitions](https://api.census.gov/data/2024/acs/acs5/profile/groups/DP05.html)
+- [Census controlled estimates](https://www.census.gov/help/topics/faq.in-the-acs-data-products-i-see-a-controlled-estimate.html)
+- [HRSA AHRF downloads and documentation](https://data.hrsa.gov/data/download?data=AHRF)
+- [CMS geographic reclassification rules](https://www.cms.gov/files/document/mgcrb-rules-december-15-2023.pdf)
+
+Example inspection in Supabase SQL Editor:
+
+```sql
+SELECT c.state, r.record_key AS county,
+       r.payload->'acs_measures'->'uninsured_percent' AS uninsured,
+       r.payload->'acs_measures'->'median_household_income' AS income,
+       r.payload->'health_workforce'->'measures' AS workforce
+FROM hospital_data.reference_coverage c
+JOIN hospital_data.reference_records r ON r.run_id=c.active_run_id
+WHERE c.kind='county_demographics'
+ORDER BY c.state, r.record_key;
+```
+
+Final three-state verification found all 12 active reference components (four per
+state), all 15 financial state/year snapshots, and 2,959 active financial rows.
+Application tables/indexes occupied 14,958,592 bytes (about 15.0 MB), including
+retained revisions and excluding the Supabase project baseline. All three rural
+list tools and representative county statistics calls succeeded with external
+HTTP blocked. The offline suite passed 215 tests plus 6 subtests; the frontend
+comparison harness also passed. Live model generation/deployment was not tested.

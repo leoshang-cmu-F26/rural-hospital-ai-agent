@@ -3,14 +3,13 @@
 from datetime import datetime, timezone
 import json
 import math
-import os
 import sqlite3
 
 import requests
 
-from app.common.constants import CENSUS_FIELDS, HOSPITAL_FIELDS, HRSA_FIELDS
+from app.common.constants import HOSPITAL_FIELDS, HRSA_FIELDS
 from app.services import reference_store as store
-from app.services.cms_service import _query_hospital_rows, CMS_HOSPITAL_API_URL, normalize_county
+from app.services.cms_service import _query_hospital_rows, CMS_HOSPITAL_API_URL
 from app.services.census_service import CENSUS_API_URL
 from app.services.hrsa_service import HRSA_PRIMARY_CARE_HPSA_URL
 from app.services.geocoding_service import geocode_address, CENSUS_GEOCODER_URL
@@ -19,7 +18,7 @@ from app.services.coordinate_cache import (
     write_coordinate_cache,
     COORDINATE_DB_PATH,
 )
-from app.utils.state_utils import get_state_name, get_state_fips, normalize_state
+from app.utils.state_utils import get_state_name, normalize_state
 
 # Hospital directory import
 
@@ -51,64 +50,10 @@ def import_directory(state):
 
 
 def fetch_demographics(state):
-    # One Census query retrieves all counties for the published ACS profile year.
-    """Retrieve and validate all county estimates for one state."""
-    fields = [
-        'NAME',
-        CENSUS_FIELDS.TOTAL_POPULATION_FIELD,
-        CENSUS_FIELDS.AGE_65_PLUS_FIELD,
-        CENSUS_FIELDS.AGE_65_PLUS_PERCENT_FIELD,
-    ]
-    params = {'get': ','.join(fields), 'for': 'county:*', 'in': 'state:' + get_state_fips(state)}
-    key = os.getenv('CENSUS_API_KEY')
-    if key:
-        params['key'] = key
-    response = requests.get(CENSUS_API_URL, params=params, timeout=45)
-    response.raise_for_status()
-    rows = response.json()
-    if not isinstance(rows, list) or len(rows) < 2:
-        raise ValueError('Census did not return county rows.')
-    headers = rows[0]
-    if not set(fields + ['state', 'county']).issubset(headers):
-        raise ValueError('Census response is missing required variables.')
-    records = {}
-    for values in rows[1:]:
-        if len(values) != len(headers):
-            raise ValueError('Truncated Census row.')
-        raw = {}
-        for header, value in zip(headers, values):
-            raw[header] = value
-        if raw['state'] != get_state_fips(state):
-            raise ValueError('Unexpected Census state.')
-        county = normalize_county(raw['NAME'].split(',')[0])
-        if county in records:
-            raise ValueError('Duplicate Census county.')
-        population = int(raw[CENSUS_FIELDS.TOTAL_POPULATION_FIELD])
-        age = int(raw[CENSUS_FIELDS.AGE_65_PLUS_FIELD])
-        percent = float(raw[CENSUS_FIELDS.AGE_65_PLUS_PERCENT_FIELD])
-        if (
-            population < 0
-            or age < 0
-            or age > population
-            or not math.isfinite(percent)
-            or not 0 <= percent <= 100
-        ):
-            raise ValueError('Missing/suppressed or invalid Census estimates.')
-        records[county] = {
-            'county': county.upper(),
-            'state_fips': raw['state'],
-            'county_fips': raw['county'],
-            'total_population': population,
-            'population_65_plus': age,
-            'population_65_plus_percent': percent,
-            'source': 'U.S. Census Bureau ACS 2024 5-Year',
-            'dataset': 'ACS Demographic and Housing Estimates',
-            '_raw_record': raw,
-        }
-    expected = {'WI': 72, 'WY': 23}.get(state)
-    if expected is not None and len(records) != expected:
-        raise ValueError('County coverage does not match the 2024 county count.')
-    return records
+    """Import county ACS estimates/MOEs and dated AHRF workforce ratios."""
+    from app.services.county_statistics_import import fetch_county_statistics
+
+    return fetch_county_statistics(state)
 
 
 # Complete HPSA feature retrieval

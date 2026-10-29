@@ -40,26 +40,61 @@ and next verification step. Census/HRSA/distance failures, coordinate exclusions
 ACS uncertainty without MOEs and financial alignment are explicitly surfaced.
 Warnings are text DOM nodes; source/model HTML is never executed.
 
-## Initial retrieval-augmented generation
+## Vector retrieval-augmented generation
 
-1. Reviewed government source snapshots are tracked in
-   `data/reference/methodology/corpus.json` with title, URL, retrieval date, content
-   checksum, extraction method, and PDF page where applicable.
-2. The runtime creates an ignored `data/methodology.db` SQLite FTS5 index. Corpus
-   checksums drive atomic rebuilds; runtime retrieval does not download pages.
-3. Questions retrieve up to three 900-character passages by default (maximum four),
-   using lexical BM25 and a small bilingual query-expansion vocabulary.
-4. The agent uses `search_methodology_documents` for explanatory questions and
-   cites supporting sources. Structured tools remain authoritative for hospital
-   identities and numeric observations. Matching text is not proof of entailment;
-   the agent is instructed to disclose unsupported questions and avoid invented
-   citations. A failed index/source is distinguished from no lexical match.
+The default backend is OpenAI embeddings plus Supabase PostgreSQL `pgvector`.
+The former SQLite FTS5/BM25 backend is retained only as an explicitly selected
+legacy option (`METHODOLOGY_RETRIEVAL_MODE=lexical`). There is no silent fallback.
 
-This is lexical RAG, not vector/embedding retrieval. It adds no embedding API or
-external vector-database cost; normal answer-generation tokens still apply.
-Retrieval is tested deterministically; generation faithfulness still needs live
-model evaluation. Chinese expansion covers selected terms, not arbitrary semantic
-translation. Document content is evidence and must never override instructions.
+1. Reviewed official snapshots remain versioned in
+   `data/reference/methodology/corpus.json`. Source content hashes, URLs, retrieval
+   dates, exact passage offsets and PDF pages are preserved.
+2. `python -m scripts.import_methodology_vectors --init-db` enables pgvector and
+   creates private `hospital_data.methodology_corpora`, `methodology_passages`,
+   and `methodology_active` tables. It splits text into 900-character passages
+   with 100-character overlap, embedding title + topic + exact excerpt.
+3. Embeddings default to `text-embedding-3-small`, fixed at 1536 dimensions.
+   `text-embedding-3-large` is also supported at 1536 dimensions. Changing models
+   requires an explicit import; document and query models must match.
+4. Input hash/model matching reuses stored document vectors. A corpus fingerprint
+   includes source bytes, model, dimensions and chunk/input recipe. Unchanged
+   imports skip embedding calls. Complete versions publish in one transaction;
+   failed embedding or database work cannot replace the active corpus.
+5. At runtime `search_methodology_documents` delegates to vector retrieval. It
+   verifies local source checksums and the active fingerprint before embedding
+   the question, then searches that exact corpus with pgvector cosine distance.
+   This small corpus uses exact vector nearest-neighbor search, not an HNSW or
+   IVFFlat approximate index. PostgreSQL scans the version's small passage set.
+6. By default up to three passages return (maximum four), after a configurable
+   minimum cosine similarity of 0.30. The threshold is a heuristic, not calibrated
+   factual confidence. Stored excerpts/metadata must still match reviewed source
+   spans; provenance mismatches fail closed.
+7. The Agent receives passage text, source URLs/pages/dates and similarity. It
+   must check that passages support its claims and cite them. An empty result is
+   distinct from an unavailable API/database or stale corpus. Numeric hospital
+   facts and calculations still come from structured tools.
+
+Repeated query embeddings are cached in bounded process memory for one hour
+(maximum 256 queries). Each uncached methodology question calls the embedding API;
+normal answer-generation tokens also apply. This change targets semantic matching,
+including cross-language wording, and does not guarantee lower latency. Only
+retrieval questions/public document chunks are embedded; hospital tables are not
+bulk-converted into vectors. Query requests never create tables or re-embed docs.
+
+Configuration:
+
+```dotenv
+METHODOLOGY_RETRIEVAL_MODE=vector
+METHODOLOGY_EMBEDDING_MODEL=text-embedding-3-small
+METHODOLOGY_MIN_SIMILARITY=0.30
+```
+
+Existing private `DATABASE_URL` and `OPENAI_API_KEY` are required. The local
+configuration and shared Supabase corpus have been migrated. Render still needs
+updated code/environment settings; it does not run the import on startup. A newer
+corpus activated in the shared database will reject stale deployed corpus bytes
+rather than silently serving a mismatched version. Old corpus versions are kept;
+no automatic history deletion or background refresh has been configured.
 
 ### Sources and scope
 
@@ -89,7 +124,12 @@ financial-report library and cannot explain hospital-specific causes of distress
   require PDF parsing packages.
 - HRSA fallback refresh: recheck the official page and update the reviewed excerpt,
   review date and checksum; do not silently stamp an old excerpt with today's date.
-- `python -m pytest app/tests/data_quality_test.py app/tests/methodology_test.py -q`.
+- After refreshing/reviewing the source corpus, run
+  `python -m scripts.import_methodology_vectors` to activate its vector version.
+- `python -m pytest app/tests/data_quality_test.py app/tests/methodology_test.py app/tests/methodology_vectors_test.py -q`.
+  Legacy lexical tests explicitly select lexical mode; vector tests mock the
+  database/embedding API and verify bounds, caching, provenance, mismatch failures
+  and no silent fallback.
 - `node app/tests/frontend_comparison_test.cjs frontend` verifies visible notices
   along with safe Markdown and conversation switching.
 
@@ -105,3 +145,17 @@ financial-report library and cannot explain hospital-specific causes of distress
   Expect discussion of estimates/MOEs and no significance claim without testing.
 - Explain the role of extraterrestrial subsidies in hospital distress.
   Expect insufficient evidence in this corpus, not an invented source.
+
+### Migration verification (2026-10-28)
+
+The private Supabase project enabled pgvector 0.8.2 and imported all 16 passages
+using `text-embedding-3-small` at 1536 dimensions. Direct live retrieval verified
+HRSA HPSA, Chinese ACS uncertainty, CMS Net Patient Revenue definition and a
+no-match unrelated question. Re-import returned `unchanged` without new document
+embedding calls. These checks establish retrieval behavior for those examples,
+not broad retrieval accuracy or generation faithfulness.
+
+Official implementation references:
+
+- [OpenAI embeddings](https://developers.openai.com/api/docs/guides/embeddings)
+- [Supabase pgvector](https://supabase.com/docs/guides/database/extensions/pgvector)

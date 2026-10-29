@@ -24,6 +24,17 @@ def warning(code, message, action, metric=None, severity='warning', **context):
 # Financial source validation
 
 
+def parse_fiscal_date(value):
+    """Accept CMS CSV month/day/year dates and ISO API dates consistently."""
+    if not isinstance(value, str):
+        raise ValueError('Missing fiscal date.')
+    value = value.strip()
+    try:
+        return datetime.fromisoformat(value.replace('Z', '+00:00')).date()
+    except ValueError:
+        return datetime.strptime(value, '%m/%d/%Y').date()
+
+
 def financial_quality(record):
     """Preserve reported values while blocking misleading ratio interpretation."""
     alerts = []
@@ -89,8 +100,8 @@ def financial_quality(record):
             )
     # 3. Actual fiscal dates matter; a dataset year is not the fiscal period.
     try:
-        begin = datetime.fromisoformat(record.fiscal_year_begin.replace('Z', '+00:00'))
-        end = datetime.fromisoformat(record.fiscal_year_end.replace('Z', '+00:00'))
+        begin = parse_fiscal_date(record.fiscal_year_begin)
+        end = parse_fiscal_date(record.fiscal_year_end)
         days = (end - begin).days + 1
         if not 330 <= days <= 400:
             raise ValueError('Nonannual period')
@@ -224,12 +235,16 @@ def collect_quality_warnings(output):
                     )
                 )
         if data.get('county_demographics', {}).get('available'):
+            demographics = data["county_demographics"]
+            uncertainty_message = "County ACS values are survey estimates; this analysis does not retrieve margins of error."
+            if demographics.get("acs_measures"):
+                uncertainty_message = "County ACS estimates include published 90% margins of error; controlled or unavailable MOEs are identified separately."
             alerts.append(
                 warning(
-                    'acs_uncertainty',
-                    'County ACS values are survey estimates; this analysis does not retrieve margins of error.',
-                    'Do not claim statistical differences or treat county values as the hospital service-area population.',
-                    severity='info',
+                    "acs_uncertainty",
+                    uncertainty_message,
+                    "Do not claim statistical differences or treat county values as the hospital service-area population.",
+                    severity="info",
                 )
             )
         distance = data.get('distance_analysis', {})

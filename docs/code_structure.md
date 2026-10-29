@@ -56,7 +56,7 @@ See [financial snapshots](financial_database.md) and
 - `data_quality_service.py`: metric interpretation guards, dated rural notices and
   model-independent frontend warnings.
 - `methodology_service.py`: checksum verification, exact document chunks and local
-  SQLite FTS5/BM25 retrieval.
+  pgvector semantic retrieval by default (explicit legacy SQLite FTS5/BM25 mode remains).
 - `scripts/build_methodology_corpus.py`, `extract_cost_dictionary.py` and
   `extract_tribal_directory.py`: reviewed reference extraction and refresh helpers.
 
@@ -104,3 +104,18 @@ node app/tests/frontend_comparison_test.cjs frontend
 
 Tests ending in `_agent_test.py` and several standalone service scripts use live
 external services; do not include them in an offline run accidentally.
+
+### Expanded county statistics
+
+`county_statistics_import.py` defines the pinned ACS/AHRF variables, validates
+county coverage, preserves MOE special values, and joins workforce metrics by
+county FIPS. `reference_import_service.fetch_demographics` uses that importer, so
+routine refreshes retain the extended fields. Data remains in the existing
+`county_demographics` snapshot; `census_service` returns it without external HTTP
+in database-only mode. `get_county_health_context` exposes the same evidence for
+county questions without requiring a hospital identity.
+
+`methodology_vectors.py` handles embedding validation, idempotent document imports,
+atomic corpus activation, query embedding caching and exact pgvector cosine
+retrieval. `scripts/import_methodology_vectors.py` is the explicit import entry
+point; no database writes or document embedding happen in a chat request.

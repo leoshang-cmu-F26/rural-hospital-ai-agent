@@ -8,9 +8,8 @@ and the agent tool.
 """
 
 from statistics import mean
-from datetime import datetime
 
-from app.services.data_quality_service import warning, rural_from_record
+from app.services.data_quality_service import warning, rural_from_record, parse_fiscal_date
 
 from app.models.financial import (
     FinancialIndicators,
@@ -262,10 +261,10 @@ def build_financial_trend(
             continue
         previous = ordered[index - 1]
         try:
-            begin = datetime.fromisoformat(item.fiscal_year_begin)
-            end = datetime.fromisoformat(item.fiscal_year_end)
-            prior_begin = datetime.fromisoformat(previous.fiscal_year_begin)
-            prior_end = datetime.fromisoformat(previous.fiscal_year_end)
+            begin = parse_fiscal_date(item.fiscal_year_begin)
+            end = parse_fiscal_date(item.fiscal_year_end)
+            prior_begin = parse_fiscal_date(previous.fiscal_year_begin)
+            prior_end = parse_fiscal_date(previous.fiscal_year_end)
             if begin <= prior_end or abs((end - begin).days - (prior_end - prior_begin).days) > 31:
                 raise ValueError('Overlapping or unequal periods')
         except (ValueError, TypeError):

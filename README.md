@@ -15,9 +15,9 @@ The backend now supports Supabase/PostgreSQL financial snapshots. With
 reports and available years come from completed database imports, not live CMS
 requests. Missing coverage is disclosed instead of interpreted as no filing.
 
-Wisconsin and Wyoming 2020–2024 have been imported and verified: **900 report rows**
-(753 WI + 147 WY), preserving all source fields and multiple reports. Results include source retrieval/import
-dates; "latest" in this mode means the latest imported year. WI/WY hospital identity, ACS 2024 county estimates, HRSA primary-care features
+California, Wisconsin and Wyoming 2020–2024 have been imported and verified: **2,959 report rows**
+(2,059 CA + 753 WI + 147 WY), preserving all source fields and multiple reports. Results include source retrieval/import
+dates; "latest" in this mode means the latest imported year. CA/WI/WY hospital identity, ACS 2024 county estimates with 90% MOEs, insurance/income/poverty and AHRF workforce ratios, HRSA primary-care features
 and available coordinates are now stored too. Set `REFERENCE_DATA_MODE=database_only`
 to use those dated snapshots; arbitrary new addresses may still require online matching.
 See [reference import scope, refresh commands and capacity assessment](docs/reference_database.md).
@@ -42,7 +42,7 @@ The system currently supports:
 - Dated non-rural hospital reminders and visible data-quality notices for unreliable ratios, fiscal periods, missing evidence, and trend reversals
 - Address-based access analysis for facilities with user-confirmed physical addresses
 - Historical CMS/IHS tribal-facility directory lookup, with institution types and PDF source pages
-- Local methodology RAG over reviewed CMS, Census, and HRSA document snapshots using SQLite FTS5/BM25
+- Methodology RAG over reviewed CMS, Census, and HRSA snapshots using OpenAI embeddings and Supabase pgvector
 - Bounded conversation context, streamed progress, source/coverage cards, and safe Markdown rendering
 - LLM tool calling through a LangGraph/LangChain agent
 - FastAPI endpoints and a chat UI served at `/demo/`
@@ -81,7 +81,7 @@ Agent Tools
   |      `--> State/county/ZIP cohorts or user-confirmed address context
   |
   +--> search_methodology_documents
-  |      `--> Reviewed document snapshots + local SQLite FTS5/BM25 retrieval
+  |      `--> Reviewed document snapshots + OpenAI embeddings + Supabase pgvector
   |
   `--> get_hospital_demographics / analyze_healthcare_access
          `--> U.S. Census Bureau ACS / HRSA GIS service
@@ -412,7 +412,7 @@ data/*.db-*
 
 ## Status
 
-Working investigation prototype with structured public-data retrieval, deterministic analytics, bounded chat context, state/county/ZIP access analysis, visible interpretation notices, and a first local lexical RAG implementation. Offline regression checks do not establish live model reliability or upstream availability. This research/learning project does not predict closure or replace clinical or financial decision-making.
+Working investigation prototype with structured public-data retrieval, deterministic analytics, bounded chat context, state/county/ZIP access analysis, visible interpretation notices, and a vector RAG implementation. Offline regression checks do not establish live model reliability or upstream availability. This research/learning project does not predict closure or replace clinical or financial decision-making.
 
 
 ## Location-aware search and full investigation
@@ -563,14 +563,13 @@ trend reversals and missing access evidence are surfaced independently of model
 prose. Affected comparison differences/directional labels are withheld.
 
 `search_methodology_documents` retrieves short passages from reviewed CMS, Census
-and HRSA snapshots using local SQLite FTS5/BM25. Citations include source URLs,
-retrieval dates and dictionary PDF pages. This is lexical RAG without embedding
-API calls; hospital numbers still come from deterministic structured tools.
+and HRSA snapshots using OpenAI embeddings and Supabase pgvector cosine search. Citations include source URLs,
+retrieval dates and dictionary PDF pages. This is vector RAG with embedding API calls; hospital numbers still come from deterministic structured tools.
 See [data-quality rules, corpus provenance and test prompts](docs/data_quality_and_rag.md).
 
 The initial corpus covers CMS cost-report provenance, ten CMS dictionary field definitions with PDF page citations, HRSA HPSA types, and Census ACS uncertainty/statistical comparisons. Retrieval dates are not publication dates or proof of current policy. HRSA uses an explicitly recorded reviewed excerpt where direct download returned 403. Unsupported questions must be disclosed rather than answered with invented citations.
 
-Runtime retrieval returns up to three short passages by default and makes no embedding API calls. Normal answer-generation tokens still apply. Hospital identities and numbers continue to come from structured tools. The historical tribal directory is a separate structured lookup, not a tribal financial-report RAG corpus.
+Runtime retrieval returns up to three short passages by default. Query embeddings are cached in memory for one hour; uncached questions call the embedding API. Document embeddings are generated by the explicit import job. Normal answer-generation tokens still apply. Hospital identities and numbers continue to come from structured tools. The historical tribal directory is a separate structured lookup, not a tribal financial-report RAG corpus.
 
 Try:
 
@@ -584,7 +583,7 @@ How does CMS define Net Patient Revenue? Cite the dictionary page.
 
 ## Runtime storage and deployment
 
-Geocoding checks the in-memory TTL cache, then `data/hospital_coordinates.db`, then Census Geocoder. Successful coordinates persist across restarts only when the database file is preserved. `data/tribal_facilities.db` and `data/methodology.db` are regenerable local indexes built from tracked snapshots under `data/reference/`. Runtime databases are ignored by Git; normal app execution does not require PDF extraction libraries.
+Geocoding checks the in-memory TTL cache, then `data/hospital_coordinates.db`, then Census Geocoder. Successful coordinates persist across restarts only when the database file is preserved. `data/tribal_facilities.db` is a regenerable local directory index. `data/methodology.db` is retained only for explicitly configured legacy lexical retrieval; default methodology vectors live in private Supabase tables. Both use tracked snapshots under `data/reference/`. Runtime databases are ignored by Git; normal app execution does not require PDF extraction libraries.
 
 FastAPI serves both frontend and backend. For a Python web service, install with `pip install -r requirements.txt` and start with:
 
@@ -604,3 +603,30 @@ node app/tests/frontend_comparison_test.cjs frontend
 ```
 
 Live smoke scripts remain separate and may incur model API costs. Do not run every `*_test.py` indiscriminately as an offline suite.
+
+## Financial charts
+
+The chat demo supports financial trend line charts and comparison bars for
+2–5 hospitals through `create_financial_chart`. Choose operating margin,
+liabilities/assets, occupancy or cost/charge in the chart selector. Missing years
+remain gaps; mismatched fiscal periods withhold comparative bars and retain a
+source data table. No chart library or CDN is required.
+
+See [examples, safeguards and tests](docs/financial_charts.md). Restart the local
+server and refresh `/demo/` to load the new chart controls. Hosted changes still
+require deployment.
+
+### Vector RAG setup and refresh
+
+```bash
+python -m scripts.import_methodology_vectors --init-db
+```
+
+Set `METHODOLOGY_RETRIEVAL_MODE=vector` (the default),
+`METHODOLOGY_EMBEDDING_MODEL=text-embedding-3-small`, and
+`METHODOLOGY_MIN_SIMILARITY=0.30`. Existing private `DATABASE_URL` and
+`OPENAI_API_KEY` are required. The three private `hospital_data.methodology_*`
+tables retain passage provenance and complete corpus versions. Re-run the import
+following a reviewed corpus/model change; unchanged input embeddings are reused.
+Queries do not build indexes or silently fall back to keyword search on failure.
+See [vector ingestion, runtime behavior and limits](docs/data_quality_and_rag.md).

@@ -1,5 +1,7 @@
 """Request-local, public progress events; never expose model reasoning."""
 
+import json
+
 from contextvars import ContextVar
 from app.services.chat_context import extract_facility, extract_comparison
 from langchain_core.callbacks import BaseCallbackHandler
@@ -26,6 +28,9 @@ class ToolProgressHandler(BaseCallbackHandler):
     def on_tool_start(self, serialized, input_str, **kwargs):
         # Publish readable activity names, never model reasoning or raw inputs.
         messages = {
+            'create_financial_chart': 'Preparing validated financial charts…',
+            'list_rural_hospitals': 'Listing CMS-classified rural hospitals…',
+            'get_county_health_context': 'Reading county statistical evidence…',
             'search_methodology_documents': 'Searching official methodology documents…',
             'analyze_area_healthcare_access': 'Analyzing healthcare access across the requested area…',
             'resolve_facility': 'Checking facility identity and current CMS records…',
@@ -50,6 +55,28 @@ class ToolProgressHandler(BaseCallbackHandler):
 
     def on_tool_end(self, output, **kwargs):
         # Tool completion can update evidence cards and the active identity/pair.
+        chart_data = output
+        if hasattr(chart_data, 'content'):
+            chart_data = chart_data.content
+        if isinstance(chart_data, str):
+            try:
+                chart_data = json.loads(chart_data)
+            except (ValueError, TypeError):
+                chart_data = None
+        if isinstance(chart_data, dict) and chart_data.get('charts'):
+            self.sink({'type': 'charts', 'charts': chart_data['charts'],
+                       'notes': chart_data.get('notes', [])})
+            # Do not leave the last resolved hospital active after a multi-target chart.
+            targets = []
+            for series in chart_data['charts'][0].get('series', []):
+                targets.append({'facility_id': series['facility_id'],
+                                'facility_name': series['name']})
+            if len(targets) == 1:
+                self.sink({'type': 'context', 'current_facility': targets[0]})
+            elif len(targets) == 2:
+                self.sink({'type': 'comparison_context', 'comparison_facilities': targets})
+            else:
+                self.sink({'type': 'context', 'current_facility': None})
         warnings = collect_quality_warnings(output)
         if warnings:
             self.sink({'type': 'warnings', 'warnings': warnings})

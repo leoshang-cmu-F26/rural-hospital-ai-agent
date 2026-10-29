@@ -397,7 +397,7 @@ def test_agent_financial_tools_return_evidence_for_the_llm(cost_reports):
         "report_year", "fiscal_year_begin", "fiscal_year_end",
         "operating_margin", "occupancy_rate",
         "liability_to_asset_ratio", "cost_to_charge_ratio",
-        "missing_fields", "data_provenance",
+        "missing_fields", "data_provenance", "blocked_metrics", "quality_warnings",
     }
     assert any("do not predict closure" in note for note in trend["notes"])
 

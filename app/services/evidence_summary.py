@@ -41,7 +41,7 @@ def evidence_summary(output):
                     'key': 'methodology',
                     'label': 'Methodology retrieval',
                     'status': 'unavailable',
-                    'source': 'Local reviewed corpus',
+                    'source': raw.get('retrieval_method', 'Reviewed methodology corpus'),
                     'details': raw.get('error') or 'No matching supporting passage found.',
                 }
             )

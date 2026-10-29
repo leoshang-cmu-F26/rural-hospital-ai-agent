@@ -51,6 +51,8 @@
             <button class="example-button" onclick="useExample('Analyze healthcare access around rural hospitals in Fremont County, Wyoming. Include county context and nearby same-state hospitals.')">County rural access</button>
             <button class="example-button" onclick="useExample('Analyze healthcare access around all CMS-listed hospitals in ZIP code 53948, Wisconsin. Distinguish county-level context from ZIP-level evidence.')">ZIP hospital access</button>
             <button class="example-button" onclick="useExample('Explain the difference between a geographic HPSA and a population HPSA. Cite the methodology documents.')">Explain data &amp; methods</button>
+            <button class="example-button" onclick="useExample('Show a financial trend line chart for Mile Bluff Medical Center in Mauston, Wisconsin, from 2020 to 2024.')">Financial trend chart</button>
+            <button class="example-button" onclick="useExample('Show financial comparison bar charts for Mile Bluff Medical Center in Mauston, WI, Reedsburg Area Medical Center in Reedsburg, WI, and Tomah Memorial Hospital in Tomah, WI. Use a common CMS report year and explain fiscal alignment.')">Hospital comparison chart</button>
             <button class="example-button clear-button" onclick="clearChat()">Clear chat</button>
         </div>
 
@@ -78,7 +80,8 @@
 
 <!-- Load the safe renderer before the chat controller. -->
 <script src="markdown.js?v=20261016-tribal-directory"></script>
-<script src="app.js?v=20261026-quality-rag"></script>
+<script src="financial-charts.js?v=20261028"></script>
+<script src="app.js?v=20261028-charts"></script>
 
 </body>
 </html>

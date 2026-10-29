@@ -184,3 +184,35 @@ textarea {
 .quality-notice { margin: 8px 0; overflow-wrap: anywhere; }
 .quality-notice p { margin: 4px 0; line-height: 1.5; }
 .quality-info { color: #364b59; }
+
+/* Financial charts use responsive SVG with independently scrollable data tables. */
+.financial-charts {
+    margin: 16px 0;
+    padding: 18px;
+    border: 1px solid #d5e1e5;
+    border-radius: 10px;
+    background: #fff;
+}
+.financial-charts select {
+    max-width: 100%;
+    padding: 8px;
+    font-size: 14px;
+}
+.financial-charts svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-width: 300px;
+}
+.financial-charts details {
+    overflow-x: auto;
+    margin: 12px 0;
+}
+.financial-charts summary { cursor: pointer; }
+.financial-charts table { border-collapse: collapse; font-size: 13px; }
+.financial-charts th, .financial-charts td {
+    padding: 8px;
+    border: 1px solid #dce3e6;
+    text-align: left;
+}
+.chart-notes { font-size: 13px; color: #665229; line-height: 1.5; }

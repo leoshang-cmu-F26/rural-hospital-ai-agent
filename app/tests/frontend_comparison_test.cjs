@@ -25,6 +25,7 @@ const context={document:{createElement:tag=>new Element(tag),createTextNode:text
             : message === 'Fresh chat' ? [{type:'result',response:'Which hospitals?'}]
             : [{type:'comparison_context',comparison_facilities:pair},
                {type:'warnings',warnings:[{code:'non_rural_hospital',facility_id:'521351',facility_name:'Reedsburg',message:'CMS classifies this hospital as urban in 2024. <script>unsafe</script>',action:'Continue analysis; do not call it rural.'}]},
+               {type:'charts',charts:[{id:'example',type:'bar'}],notes:['CMS']},
                {type:'evidence',sections:[
                   {key:'520109:financials',label:'Mile Bluff — Financials',status:'available',source:'CMS'},
                   {key:'521351:financials',label:'Reedsburg — Financials',status:'available',source:'CMS'}]},
@@ -32,6 +33,8 @@ const context={document:{createElement:tag=>new Element(tag),createTextNode:text
         let done=false;
         return {ok:true,body:{getReader(){return {read:async()=>done?{done:true}:(done=true,{done:false,value:Buffer.from(events.map(JSON.stringify).join('\n')+'\n')}),cancel:async()=>{},releaseLock(){}}}}};
     }};
+context.chartDeliveries = [];
+context.renderFinancialCharts = (reply, charts, notes) => context.chartDeliveries.push({charts, notes});
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(process.argv[2]+'/markdown.js','utf8'),context);
 vm.runInContext(fs.readFileSync(process.argv[2]+'/app.js','utf8'),context);
@@ -45,6 +48,9 @@ assert(context.output.textContent.includes('<img'));
 (async()=>{
     nodes['message-input'].value='Compare both hospitals';
     await vm.runInContext('sendMessage()',context);
+    assert.equal(context.chartDeliveries[0].charts[0].id, 'example');
+    assert.equal(context.chartDeliveries[0].notes[0], 'CMS');
+    assert(!JSON.stringify(requests[0]).includes('example'));
     assert(nodes['current-facility'].textContent.includes('Mile Bluff'));
     assert(nodes['current-facility'].textContent.includes('Reedsburg'));
     assert(nodes['chat-box'].textContent.includes('CMS classifies this hospital as urban'));

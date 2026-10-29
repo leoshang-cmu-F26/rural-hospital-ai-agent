@@ -1,8 +1,9 @@
-"""Offline lexical RAG retrieval over reviewed, versioned methodology documents."""
+"""Methodology RAG: pgvector by default, with explicit legacy lexical retrieval."""
 
 from contextlib import closing
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -132,7 +133,7 @@ def initialize_methodology_index():
 # Bounded passage retrieval
 
 
-def retrieve_methodology(query, limit=3):
+def retrieve_lexical_methodology(query, limit=3):
     """Return evidence passages, never a fabricated answer or live hospital facts."""
     # 1. Bound input and expand a small reviewed vocabulary, including Chinese terms.
     if not isinstance(query, str) or not query.strip() or len(query) > 600:
@@ -196,3 +197,32 @@ def retrieve_methodology(query, limit=3):
         error_response['error'] = 'Methodology corpus or local search index unavailable.'
 
         return error_response
+
+
+# Vector retrieval is the default; lexical retrieval requires an explicit setting.
+
+
+def retrieve_methodology(query, limit=3):
+    """Keep the Agent tool stable while switching its retrieval backend."""
+    if not isinstance(query, str) or not query.strip() or len(query) > 600:
+        return {'error': 'Provide a methodology question of 1–600 characters.'}
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 4:
+        return {'error': 'limit must be between 1 and 4.'}
+    mode = os.getenv('METHODOLOGY_RETRIEVAL_MODE', 'vector')
+    if mode == 'lexical':
+        return retrieve_lexical_methodology(query, limit)
+    if mode != 'vector':
+        return {'available': False, 'has_matches': False, 'passages': [],
+                'error': 'Invalid METHODOLOGY_RETRIEVAL_MODE.'}
+    from app.services import methodology_vectors as vectors
+    from app.services.financial_store import FinancialStoreUnavailable
+
+    try:
+        return vectors.retrieve_vectors(query.strip(), limit)
+    except vectors.MethodologyVectorUnavailable as error:
+        message = str(error)
+    except (OSError, ValueError, KeyError, TypeError, FinancialStoreUnavailable):
+        message = 'Methodology vector corpus or database unavailable.'
+    return {'report_kind': 'methodology_retrieval', 'available': False,
+            'retrieval_method': 'OpenAI embeddings / PostgreSQL pgvector cosine similarity',
+            'has_matches': False, 'passages': [], 'error': message}

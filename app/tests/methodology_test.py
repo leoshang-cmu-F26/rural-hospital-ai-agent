@@ -11,6 +11,7 @@ from app.services.chat_context import extract_facility
 
 @pytest.fixture(autouse=True)
 def local_index(tmp_path, monkeypatch):
+    monkeypatch.setenv('METHODOLOGY_RETRIEVAL_MODE', 'lexical')
     monkeypatch.setattr(service, 'INDEX_PATH', tmp_path / 'methodology.db')
 
 

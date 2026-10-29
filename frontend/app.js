@@ -25,6 +25,8 @@ async function sendMessage() {
     let nextComparison = comparisonFacilities;
     const evidence = new Map();
     const warnings = new Map();
+    const charts = new Map();
+    const chartNotes = new Set();
     // 1. Show user message in chat
     addMessage(message, "user");
 
@@ -82,6 +84,14 @@ async function sendMessage() {
                 return;
             }
             const event = JSON.parse(line);
+            if (event.type === "charts") {
+                for (const chart of event.charts || []) {
+                    charts.set(chart.id, chart);
+                }
+                for (const note of event.notes || []) {
+                    chartNotes.add(note);
+                }
+            }
             if (event.type === "evidence") {
                 for (const section of event.sections || []) {
                     evidence.set(section.key, section);
@@ -125,7 +135,11 @@ async function sendMessage() {
                 const reply = addMessage(event.response, "agent");
                 renderWarnings(reply, Array.from(warnings.values()));
                 renderEvidence(reply, Array.from(evidence.values()));
+                if (typeof renderFinancialCharts === "function") {
+                    renderFinancialCharts(reply, Array.from(charts.values()), Array.from(chartNotes));
+                }
                 updateCurrentFacility();
+                scrollToBottom();
             }
         }
         try {
