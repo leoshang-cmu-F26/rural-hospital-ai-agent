@@ -467,15 +467,50 @@ function renderEvidence(reply, sections) {
 
 
 // Data-quality notices stay visible outside the collapsible source details.
-function renderWarnings(message, warnings) {
-    if (!warnings.length) {
+// D-03: merge per-metric trend-reversal notices into one plain-language line per facility.
+function groupTrendReversals(warnings) {
+    const grouped = [];
+    const byFacility = new Map();
+    for (const warning of warnings) {
+        if (warning.code !== "trend_reversals") {
+            grouped.push(warning);
+            continue;
+        }
+        const key = warning.facility_id || warning.facility_name || "";
+        if (!byFacility.has(key)) {
+            const merged = {
+                code: "trend_reversals",
+                severity: "info",
+                facility_name: warning.facility_name,
+                metrics: [],
+                action: "The answer lists the year-by-year values instead of a single \"improving\" or \"worsening\" label."
+            };
+            byFacility.set(key, merged);
+            grouped.push(merged);
+        }
+        byFacility.get(key).metrics.push(String(warning.metric || "indicator").replace(/_/g, " "));
+    }
+    for (const merged of byFacility.values()) {
+        merged.message = "Values rose and fell over the years for " + merged.metrics.join(", ") + ".";
+    }
+    return grouped;
+}
+
+
+function renderWarnings(message, rawWarnings) {
+    if (!rawWarnings.length) {
         return;
     }
-    const panel = document.createElement("section");
+    const warnings = groupTrendReversals(rawWarnings);
+    // Long notice lists push the answer off-screen; collapse them behind a summary.
+    const collapsible = warnings.length > 2;
+    const panel = document.createElement(collapsible ? "details" : "section");
     panel.className = "quality-notices";
     panel.setAttribute("aria-label", "Data quality and interpretation notices");
-    const title = document.createElement("h3");
-    title.textContent = "Before interpreting these results";
+    const title = document.createElement(collapsible ? "summary" : "h3");
+    title.textContent = collapsible
+        ? `Before interpreting these results (${warnings.length} notes, click to expand)`
+        : "Before interpreting these results";
     panel.appendChild(title);
     const list = document.createElement("ul");
     for (const warning of warnings) {

@@ -134,8 +134,16 @@ def evidence_summary(output):
         alerts = data.get('quality_warnings', []) + data.get('indicators', {}).get(
             'quality_warnings', []
         )
+        reversals = []
         for alert in alerts:
+            # D-04: fluctuating values are an interpretation note, not missing data;
+            # they are already shown in the notice panel, so summarize them once.
+            if alert.get('code') == 'trend_reversals':
+                reversals.append(str(alert.get('metric') or 'indicator').replace('_', ' '))
+                continue
             gaps.append(alert['message'])
+        if reversals:
+            provenance_notes.append('Values rose and fell over the period: ' + ', '.join(reversals))
         missing = data.get('missing_fields') or data.get('indicators', {}).get('missing_fields')
         if missing:
             field_names = []
