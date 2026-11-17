@@ -1,0 +1,2 @@
+# Keep hashed reference snapshots byte-identical on every OS (see methodology_vectors.corpus_digest).
+data/reference/**/*.json text eol=lf

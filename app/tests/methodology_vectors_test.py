@@ -120,3 +120,10 @@ def test_embedding_sdk_parameters_and_order(monkeypatch):
     assert vectors.embed_texts(['public passage'], 'text-embedding-3-small') == [vector]
     client.embeddings.create.assert_called_once_with(
         model='text-embedding-3-small', dimensions=1536, input=['public passage'], encoding_format='float')
+
+
+def test_fingerprint_ignores_checkout_line_endings():
+    """D-01: a Windows (CRLF) import must match the Linux (LF) production checkout."""
+    lf = b'{\n  "schema_version": 1\n}\n'
+    assert vectors.corpus_digest(lf) == vectors.corpus_digest(lf.replace(b'\n', b'\r\n'))
+    assert vectors.corpus_digest(lf) != vectors.corpus_digest(lf + b' ')

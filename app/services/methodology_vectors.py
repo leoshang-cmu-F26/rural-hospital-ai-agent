@@ -70,12 +70,21 @@ def embed_texts(texts, model):
     return vectors
 
 
+def corpus_digest(payload):
+    """Hash the corpus independent of checkout line endings (Windows CRLF vs Linux LF).
+
+    Without this, vectors imported from a Windows checkout never match the
+    fingerprint computed on the Linux host, and retrieval reports them stale.
+    """
+    return hashlib.sha256(payload.replace(b'\r\n', b'\n')).hexdigest()
+
+
 def load_passages():
     """Verify exact source spans and fingerprint the corpus plus embedding recipe."""
     from app.services import methodology_service as source
 
     payload = source.CORPUS_PATH.read_bytes()
-    corpus_hash = hashlib.sha256(payload).hexdigest()
+    corpus_hash = corpus_digest(payload)
     corpus = json.loads(payload)
     if corpus.get('schema_version') != 1 or not corpus.get('documents'):
         raise MethodologyVectorUnavailable('Unsupported or empty methodology corpus.')
