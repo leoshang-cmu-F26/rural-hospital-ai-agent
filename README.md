@@ -6,6 +6,18 @@ An AI Agent prototype for investigating hospital finances, financial trends, and
 
 The chat frontend is served at `/demo/`; the root URL shows the API status. The hosted service may take time to wake up after inactivity. Repository updates appear in the hosted demo only after deployment. Initial statewide analyses may take several minutes while source data and coordinates are retrieved.
 
+## Beta quick links
+
+| I want to… | Go to |
+|---|---|
+| Use the app | [User Guide](docs/USER_GUIDE.md) |
+| Run or deploy it (Render, local, Docker) | [Deployment](docs/DEPLOYMENT.md) |
+| See what is implemented and tested | [Beta Status](docs/BETA_STATUS.md) |
+| Read the independent test materials and report | [testing/](testing/) |
+| Understand the code | [Code structure](docs/code_structure.md) |
+
+Fast local start: `pip install -r requirements.lock`, copy `.env.example` to `.env` and add `OPENAI_API_KEY`, then run `python -m uvicorn app.main:app` and open http://127.0.0.1:8000/demo/.
+
 The prototype retrieves hospital and cost-report data from CMS, calculates deterministic financial and operational indicators for a single year and across multiple years, and uses an LLM-powered agent to generate evidence-based natural-language assessments.
 
 ## Historical financial database
@@ -598,8 +610,10 @@ Configure secrets in the hosting platform, use `/health` for health checks, and 
 The default `pytest.ini` collects `test_*.py`; additional offline suites named `*_test.py` require explicit paths:
 
 ```bash
-python -m pytest app/tests/area_access_test.py app/tests/data_quality_test.py app/tests/methodology_test.py app/tests/comparison_service_test.py app/tests/hospital_upgrade_test.py app/tests/facility_resolution_test.py app/tests/tribal_directory_test.py app/tests/chat_stream_test.py -q
+python -m pytest app/tests/area_access_test.py app/tests/data_quality_test.py app/tests/methodology_test.py app/tests/comparison_service_test.py app/tests/hospital_upgrade_test.py app/tests/facility_resolution_test.py app/tests/tribal_directory_test.py app/tests/chat_stream_test.py app/tests/entrypoint_contract_test.py app/tests/financial_charts_test.py app/tests/financial_store_test.py app/tests/reference_store_test.py app/tests/methodology_vectors_test.py app/tests/chat_context_test.py app/tests/coordinate_cache_test.py app/tests/county_statistics_test.py app/tests/rural_hospital_list_test.py -q
 node app/tests/frontend_comparison_test.cjs frontend
+node app/tests/frontend_charts_test.cjs frontend
+node app/tests/frontend_warnings_test.cjs frontend
 ```
 
 Live smoke scripts remain separate and may incur model API costs. Do not run every `*_test.py` indiscriminately as an offline suite.
