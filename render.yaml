@@ -1,0 +1,31 @@
+# Render Blueprint: reproduces the hosted beta (https://rural-hospital-ai-agent.onrender.com/demo/).
+# Secrets use `sync: false`, so Render asks for them in the dashboard; they are never committed.
+services:
+  - type: web
+    name: rural-hospital-ai-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.lock
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-5.6-terra
+      - key: CENSUS_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: FINANCIAL_DATA_MODE
+        value: database_only
+      - key: REFERENCE_DATA_MODE
+        value: database_only
+      - key: METHODOLOGY_RETRIEVAL_MODE
+        value: vector
+      - key: METHODOLOGY_EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: METHODOLOGY_MIN_SIMILARITY
+        value: "0.30"

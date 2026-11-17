@@ -1,0 +1,13 @@
+.git
+.idea
+.vscode
+.venv
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+data/*.db
+data/*.db-*
+data/imports/
+docs/
+testing/
