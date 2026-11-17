@@ -14,7 +14,6 @@ You (the tester) type each question below into the chat box, in order. The devel
 | 6 | `What does HPSA mean? Where does that definition come from?` | Methodology Q&A with sources (RAG) |
 | 7 | `Find Mile Blf Medcal Center` | Misspelled input |
 | 8 | `Analyze the finances of Springfield General Hospital in Texas.` | Unknown hospital / uncovered state |
-| 9 | Any question of your own | Free exploration |
-| 10 | Click **Clear chat**, then: `Is it in financial distress?` | Context reset |
+| 9 | Click **Clear chat**, then: `Is it in financial distress?` | Context reset |
 
 At the end, tell the developer: the most useful part, the most frustrating part, and one thing you would change.

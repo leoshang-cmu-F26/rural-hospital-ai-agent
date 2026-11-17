@@ -2,7 +2,7 @@
 
 ## 1. Summary
 
-A tester outside the development team ran the core chat workflow on the hosted beta, using a 10-step script: lookup → financial distress → trend chart → comparison → county access → methodology → misspelling → unknown hospital → free question → context reset. No code or configuration was changed during the session.
+A tester outside the development team ran the core chat workflow on the hosted beta, using a 9-step script: lookup → financial distress → trend chart → comparison → county access → methodology → misspelling → unknown hospital → context reset. No code or configuration was changed during the session.
 
 All scripted steps returned an answer. Response times were **2–17 s**. Conversation context, typo handling and context reset worked as intended. The session surfaced **1 major (P1), 2 minor (P2) and 3 cosmetic (P3)** defects. The P1, one P2 and one P3 were fixed after the session, each with a regression test. The other P2 (a wording issue with no data-integrity impact) and two P3s are deferred or documented as known limitations.
 
@@ -10,8 +10,8 @@ All scripted steps returned an answer. Response times were **2–17 s**. Convers
 
 | Item | Value |
 |---|---|
-| Tester | **[FILL IN: role, e.g. "CMU student outside the team, non-technical"]** |
-| Date | **[FILL IN]** |
+| Tester | Carrie, CMU student outside the development team, unfamiliar with the project |
+| Date | November 16, 2026 |
 | Environment | Hosted beta, https://rural-hospital-ai-agent.onrender.com/demo/, desktop browser |
 | Build under test | `main` @ `02675b0` (fixes delivered afterwards on branch `beta-fixes`) |
 | Method | Tester typed the scripted questions ([TESTER_HANDOUT.md](TESTER_HANDOUT.md)); the developer recorded outputs and response times without intervening |
@@ -29,12 +29,13 @@ All scripted steps returned an answer. Response times were **2–17 s**. Convers
 | 6 | HPSA definition and source | 8 s | ⚠️ Degraded · **D-01** | The definition was correct, but the RAG index was reported "missing or stale", so there was no verified citation. The system disclosed this honestly instead of inventing a source. |
 | 7 | Misspelled "Mile Blf Medcal Center" | 5 s | ✅ Pass | Suggested the correct hospital and CCN, and did not auto-assume it. |
 | 8 | Springfield General Hospital, TX | 7 s | ⚠️ Pass with issue · D-02 | Did not invent data. The message ("directory lookup was unavailable") read like an outage, not "Texas is not covered". |
-| 9 | Tester's own question | **[FILL IN]** | **[FILL IN]** | **[FILL IN]** |
-| 10 | Clear chat → follow-up | 2 s | ✅ Pass | Correctly asked which hospital, so no stale context leaked. |
+| 9 | Clear chat → follow-up | 2 s | ✅ Pass | Correctly asked which hospital, so no stale context leaked. |
 
-**Completion:** 9 of 9 recorded steps answered without developer help (7 pass, 2 pass with an issue or degraded). Median response time was 5 s.
+**Completion:** 9 of 9 steps answered without developer help (7 pass, 2 pass with an issue or degraded). Median response time was 5 s.
 
-**Tester feedback:** **[FILL IN: most useful / most frustrating / one change, in the tester's words]**
+**Tester feedback (Carrie):** Responses were very fast, and the answers were well illustrated with charts and tables, which suited the questions. However, some unnecessary information was displayed, and it obscured the main message.
+
+The second point matches what we observed in Q2–Q4, where up to 12 repeated notices appeared before the answer. It is addressed by D-03 and D-04.
 
 ## 4. Defects
 
